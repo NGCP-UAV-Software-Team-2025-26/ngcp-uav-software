@@ -17,6 +17,7 @@ This project will focus on developing and integrating software systems for an un
 | Wesley Dam       | Member           |
 | Elijah Chan      | Member           |
 | Len Sakimukai    | Member           |
+| Medha            | Member           |  
 
 ---
 
