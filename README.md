@@ -11,20 +11,20 @@ This project will focus on developing and integrating software systems for an un
 | Name             | Role             |
 |------------------|------------------|
 | Areesha Imtiaz   | Software Lead    |
-| Ivan             | Deputy           |
+| Ivan Trinh       | Deputy           |
 | Arun Nambiar     | Member           |
 | Edwin Estrada    | Member           |
-| Wesley Dam       | Member           |
 | Elijah Chan      | Member           |
 | Len Sakimukai    | Member           |
 | Medha            | Member           |  
+| Wesley Dam       | Member           |
 
 ---
 
 ## 📅 Weekly Meetings
 
 - **Day:** Every Friday  
-- **Location:** In-person at the Cal Poly Pomona Library (Room TBD)
+- **Location:** In-person at the Cal Poly Pomona Library (Room 5439)
 
 Weekly meeting notes will be stored in the `/docs/meetings/` folder.
 
