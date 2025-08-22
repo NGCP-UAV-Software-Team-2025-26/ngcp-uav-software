@@ -38,7 +38,7 @@ TBD.
 
 ## 🛠️ Tech Stack
 
-TBD.
+TBD.  
 
 **UAV OneDrive Folder 2025-26:** https://livecsupomona-my.sharepoint.com/:f:/r/personal/cjmaw_cpp_edu/Documents/NGCP%2025-26/NGCP%20UAV%2025-26?csf=1&web=1&e=91sZNR   
 
