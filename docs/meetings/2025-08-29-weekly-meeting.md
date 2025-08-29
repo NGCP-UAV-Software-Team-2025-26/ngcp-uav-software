@@ -23,6 +23,26 @@
 - Keep an eye out: the **RFP release is expected in October**  
 - Our **Friday meeting room** will remain Library Rm 5439 (unless noted otherwise)  
 
+
+**NGCP Kickoff Beach Party** – *Potluck Style*  
+- **Saturday, Aug 30 | 1PM**  
+- **Tower 40, Manhattan Beach**  
+![NGCP Beach Party](Pink_Blue_and_Yellow_Illustrative_Summer_Beach_Party_Poster_1.jpg)  
+
+
+**Northrop Grumman Tech Talks – Fall 2025** (*Find Your Purpose Series*)  
+- **Industrial Security** – Sept 8, 6PM EST / 3PM PST  
+- **Avionics Integration & Software Engineering** – Sept 9, 6PM EST / 3PM PST  
+- **Vehicle Engineering & Test & Evaluation** – Sept 10, 6PM EST / 3PM PST  
+- **Product Support & Systems Engineering** – Sept 11, 6PM EST / 3PM PST  
+![NGAS Tech Talks](2025 Fall_Find Your Purpose Tech Talks_Flyers.pdf)  
+
+
+**CPP UAS Lab Workshop Series** – *UAS Design Tools & Software*  
+- First session: **Aircraft Modeling with OpenVSP**  
+- **Tuesday, Sept 9 | 12PM–1PM**  
+![UAS Workshop](image.png)  
+
 ---
 
 ## 🎯 Action Items
@@ -60,7 +80,7 @@
 
 ## ✨ Notes & Side Comments
 
-- [Google Slides Presentation Link](https://docs.google.com/presentation/d/1Agzk9NxDMg9ONE8-3sUQFq6Kp19H5b1B4Kgiv__WXyU/edit?usp=sharing)
+- [Presentation Link](https://docs.google.com/presentation/d/1Agzk9NxDMg9ONE8-3sUQFq6Kp19H5b1B4Kgiv__WXyU/edit?usp=sharing)
 
 ---
 
