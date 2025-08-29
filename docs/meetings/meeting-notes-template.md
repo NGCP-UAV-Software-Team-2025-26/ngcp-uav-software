@@ -1,65 +1,67 @@
 # NGCP Software Team – Weekly Meeting Notes
 
 **Date:** [Month Day, Year]  
-**Time:** [Start Time]  
-**Location:** Cal Poly Pomona Library (Room TBD)  
+**Time:** [Start–End Time]  
+**Location:** [Meeting room / Zoom link]  
 **Meeting Type:** [Weekly / Planning / Check-in / Special Session]  
-**Expected Duration:** [e.g., 1 hour]
+**Expected Duration:** [e.g., 1 hour]  
+**Attendees:** [List of names]
 
 ---
 
-## 🧊 Icebreaker 
+## 🧊 Icebreaker
+> A quick prompt or fun question to help the team engage and start the meeting.
 
-> [Fun or quick team prompt like “What’s your favorite drone design?” or “What's one tech tool you can't live without?”]
+---
+
+## 🔄 Follow-Up from Last Meeting
+- Items assigned in the previous meeting that need to be completed or updated.  
 
 ---
 
 ## 📢 Updates & Announcements
+- General updates, reminders, or important information.  
+- Project, repository, or resource changes.  
+- Collaboration or cross-team opportunities.  
+- Any advisor, organization, or school-related announcements.  
 
-- [General announcements, deadlines, reminders]
-- [Access issues, account setup, upcoming events]
-- [Advisor notes or school policies]
+---
+
+## 📌 Flyers & Events
+- Information about upcoming events, workshops, or activities.  
+- Include dates, times, locations, and links/resources when available.  
 
 ---
 
 ## 🎯 Action Items
-
-- [ ] Task A – Assigned to ___ – Due ___  
-- [ ] Task B – Assigned to ___ – Due ___  
-- [ ] Task C – Assigned to ___ – Due ___  
+- Tasks assigned to specific members with due dates.  
+- Clear deliverables to be completed before the next meeting.  
 
 ---
 
 ## 🧠 Discussion Topics
-
-- [ ] RFP Status & What to Prepare For  
-- [ ] Possible Software Architectures  
-- [ ] Tooling: GitHub Workflow, IDEs, CI/CD  
-- [ ] Questions or blockers from any member  
+- Main topics to cover during the meeting.  
+- Questions, challenges, or feedback from members.  
+- Project planning, technical decisions, or brainstorming.  
 
 ---
 
 ## 📌 Decisions Made
-
-- [ ] Chose GitHub Project layout (Kanban)  
-- [ ] Meeting notes folder confirmed: `/docs/meetings/`  
-- [ ] Everyone will complete a Tech Survey before next Friday  
+- Key choices or agreements finalized during the meeting.  
+- Record votes, outcomes, and consensus.  
 
 ---
 
 ## 📅 Next Meeting
-
-**Date & Time:** [Next Friday @ Time TBD]  
-**Room:** [Same / New room?]  
-**Pre-meeting task:** [E.g., Review GitHub workflow guide]
+- Date, time, and location (or Zoom link).  
+- Any tasks or preparations required before the next meeting.  
 
 ---
 
 ## ✨ Notes & Side Comments
-
-> Anything informal, ideas that came up, or fun moments from the meeting.
+- Additional thoughts, informal notes, or useful links.  
+- Ideas raised that don’t fit in other sections.  
 
 ---
 
-**Note-taker:** [Name]
-
+**Note-taker:** [Name]  
