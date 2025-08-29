@@ -47,25 +47,22 @@
 
 ## 🎯 Action Items
 
-- [ ] When Ivan uploads the **code from last year**, everyone should review it
-- [ ] 
+- [ ] **Download Ubuntu 24.04** (all members)  
+- [ ] **Review last year’s source code** (uploaded by Ivan)  
 
 ---
 
 ## 🧠 Discussion Topics
 
-- [ ] RFP Status & Preparation  
-- [ ] Possible Tech Stack / Software Architectures  
-- [ ] Tooling: GitHub Workflow, IDEs, CI/CD  
-- [ ] Questions or blockers  
+- [ ] **Next Friday’s meeting conflict:** Areesha has another meeting from 1–3PM. Vote:  
+  - Should Ivan lead the meeting?  
+  - Or do we want to call off the next meeting?  
 
 ---
 
 ## 📌 Decisions Made
 
-- [ ] Confirmed GitHub Project (Kanban) setup  
-- [ ] Meeting notes folder: `/docs/meetings/`  
-- [ ] Members must complete Google slides intro and GitHub scrum before each meeting  
+- [ ] TBD.
 
 ---
 
