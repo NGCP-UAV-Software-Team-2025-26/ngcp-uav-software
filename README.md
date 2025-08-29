@@ -38,7 +38,15 @@ TBD.
 
 ## 🛠️ Tech Stack
 
-TBD.  
+- **Operating System:** Ubuntu 24.04 LTS
+- **Programming Languages:** Python, C++ (for MAVSDK and PX4 integration)
+- **Flight Control Software:** PX4 Autopilot (planes interface)
+- **UAV SDK:** MAVSDK (Python/C++ bindings)
+- **Simulation Environment:** Gazebo (plane simulation)
+- **Onboard Computer:** Raspberry Pi 5 (ARM)
+- **Development & Testing:** x86 computer recommended for simulation and builds
+- **Hardware Interfaces:** Radio Frequency module (for patient search)
+- **Collaboration & Storage:** OneDrive (shared folder for UAV team files)
 
 [**UAV OneDrive Folder 2025-26**](https://livecsupomona-my.sharepoint.com/:f:/r/personal/cjmaw_cpp_edu/Documents/NGCP%2025-26/NGCP%20UAV%2025-26?csf=1&web=1&e=91sZNR)     
 
