@@ -54,7 +54,8 @@
 ## 🎯 Action Items
 
 - [ ] **Download Ubuntu 24.04** (all members)  
-- [ ] **Review last year’s source code** (uploaded by Ivan)  
+- [ ] **Review last year’s source code** (uploaded by Ivan)
+- [ ] Each member add their **availability** to the When2Meet (for Elec team collab) *above*  
 
 ---
 
