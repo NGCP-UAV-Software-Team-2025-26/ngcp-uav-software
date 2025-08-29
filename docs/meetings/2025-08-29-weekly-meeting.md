@@ -75,7 +75,7 @@
 
 ## ✨ Notes & Side Comments
 
-- Google Slides Presentation: [**Link**]([https://docs.google.com/presentation/d/1O-T6qLBhSW0XHsmgtrHCjn8CLazO4TjsXEVZkZ1KhDs/edit?usp=sharing](https://docs.google.com/presentation/d/1Agzk9NxDMg9ONE8-3sUQFq6Kp19H5b1B4Kgiv__WXyU/edit?usp=sharing))  
+- [Google Slides Presentation Link](https://docs.google.com/presentation/d/1Agzk9NxDMg9ONE8-3sUQFq6Kp19H5b1B4Kgiv__WXyU/edit?usp=sharing)
 
 ---
 
