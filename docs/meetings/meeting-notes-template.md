@@ -22,17 +22,6 @@
 
 ---
 
-## 🚧 Project Updates
-
-| Member           | Area / Subteam     | Accomplishments This Week             | Next Steps                          |
-|------------------|--------------------|----------------------------------------|--------------------------------------|
-| Areesha (Lead)   | Coordination        | Example: Created repo, GitHub Project | Set up task labels and backlog      |
-| Ivan             | Research            | Example: ROS vs. PX4 review started   | Finalize ROS notes by next week     |
-| Arun             | Tools Setup         | -                                      | Install and test VS Code plugins    |
-| [Other Members]  | [Role]              | [Their update]                        | [Their next action]                 |
-
----
-
 ## 🎯 Action Items
 
 - [ ] Task A – Assigned to ___ – Due ___  
