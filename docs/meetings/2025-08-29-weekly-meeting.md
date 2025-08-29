@@ -63,7 +63,7 @@
 
 ## 📌 Decisions Made
 
-- [ ] TBD.
+- [ ] We decided to go with **Python** as our primary programming language  
 
 ---
 
