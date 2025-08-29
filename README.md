@@ -60,7 +60,7 @@ ngcp-uav-software/
 ├── src/                # Source code will go here
 ├── docs/               # Project documentation
 │   └── meetings/       # Weekly meeting notes
-│   └── images/         # Events & Fylers information
+│   └── images/         # Events & Flyers information
 ├── scripts/            # Utility scripts and automation
 ├── tests/              # Unit and integration tests
 └── README.md           # You're here
