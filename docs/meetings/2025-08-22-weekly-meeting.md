@@ -5,6 +5,7 @@
 **Location:** Cal Poly Pomona Library (Room 5439)  
 **Meeting Type:** Weekly  
 **Expected Duration:** 1 hour  
+**Attendees:** Areesha Imtiaz, Ivan Trinh, Arun Nambiar, Edwin Estrada, Elijah Chan, Len Sakimukai, Medha Swarnachandrabalaji  
 
 ---
 
