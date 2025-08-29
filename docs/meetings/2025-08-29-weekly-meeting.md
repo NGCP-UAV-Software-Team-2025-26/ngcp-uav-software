@@ -38,7 +38,7 @@
 - **Avionics Integration & Software Engineering** – Sept 9, 6PM EST / 3PM PST  
 - **Vehicle Engineering & Test & Evaluation** – Sept 10, 6PM EST / 3PM PST  
 - **Product Support & Systems Engineering** – Sept 11, 6PM EST / 3PM PST  
-![NGAS Tech Talks](2025 Fall_Find Your Purpose Tech Talks_Flyers.pdf)  
+[NGAS Tech Talks PDF](../images/ngas-tech-talks.pdf)
 
 
 **CPP UAS Lab Workshop Series** – *UAS Design Tools & Software*  
