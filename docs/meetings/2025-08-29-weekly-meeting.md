@@ -22,7 +22,9 @@
 - **Repository Updates:**  
   - Updated the **Tech Stack** in the repository `README.md`  
   - Added **resources** to learn the Tech Stack (`docs/resources.md`)  
-  - Created a **Weekly Demo Google Sheet** to track progress  
+  - Created a **Weekly Demo Google Sheet** to track progress
+- **Collaboration Opportunity:** The **Electrical Team** reached out to meet and collaborate so we can work more closely across subteams.  
+  - Please fill in your [availability](https://www.when2meet.com/?31965182-wWjR7) to set up a joint meeting 
 
 ---
 
