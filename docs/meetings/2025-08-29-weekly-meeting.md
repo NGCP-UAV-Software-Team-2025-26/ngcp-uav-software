@@ -36,7 +36,7 @@
 
 ---
 
-### 📌 Flyers & Events
+## 📌 Flyers & Events
 
 **NGCP Kickoff Beach Party** – *Potluck Style*  
 - **Saturday, Aug 30 | 1PM**  
