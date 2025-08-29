@@ -57,7 +57,11 @@ This document collects beginner-friendly resources for our UAV Software Team to 
 
 ## 👥 Collaboration
 - **OneDrive & Shared Docs**
-  - Use `/docs/meetings/`, `/docs/resources/`, `/src/`, `/tests/` folders  
+  - Use `/docs/meetings/`, `/docs/resources/`, `/src/`, `/tests/` folders
+- **Weekly Mini-Demos**
+  - Each week, two member presents a short demo (e.g., PX4 SITL setup, MAVSDK mission script)  
+
+---
 
 ---
 
