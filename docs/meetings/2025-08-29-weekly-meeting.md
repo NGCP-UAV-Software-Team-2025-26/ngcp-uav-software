@@ -9,7 +9,7 @@
 
 ---
 
-## 🧊 Icebreaker (Optional)
+## 🧊 Icebreaker
 
 - What’s your go-to study spot on campus?  
 
