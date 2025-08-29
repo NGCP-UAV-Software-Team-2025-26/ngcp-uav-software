@@ -49,9 +49,9 @@ This document collects beginner-friendly resources for our UAV Software Team to 
   - [Raspberry Pi Getting Started Guide](https://www.raspberrypi.com/documentation/computers/getting-started.html)  
   - Practice: setup Ubuntu Server / Raspberry Pi OS, run Python scripts  
 
-- **Radio Frequency & Autonomy**
-  - Arduino RF basics (search YouTube tutorials)  
-  - Later: integrate with Raspberry Pi → PX4 mission commands  
+- **Sensors & Mission Hardware (RFP-Dependent)**
+  - Examples: cameras, GPS, RF modules, or others depending on this year’s requirements  
+  - Tutorials will be added once the RFP is released 
 
 ---
 
@@ -59,9 +59,10 @@ This document collects beginner-friendly resources for our UAV Software Team to 
 - **OneDrive & Shared Docs**
   - Use `/docs/meetings/`, `/docs/resources/`, `/src/`, `/tests/` folders
 - **Weekly Mini-Demos**
-  - Each week, two member presents a short demo (e.g., PX4 SITL setup, MAVSDK mission script)  
+  - Each week, **one member** presents a short demo (15–20 min)  
+  - Example topics: Ubuntu & Git setup, Python for UAVs, PX4 SITL, MAVSDK missions, Gazebo basics, Raspberry Pi setup, Sensors, Autonomy logic  
 
----
+👉 [Weekly Demo Sign-up Sheet]([https://docs.google.com/spreadsheets/d/XXXXXXXX](https://docs.google.com/spreadsheets/d/1DzBMOH6zYYU3UqZIS2QC2Wjy_IcgrR9F2f1jARVGgE8/edit?usp=sharing)
 
 ---
 
