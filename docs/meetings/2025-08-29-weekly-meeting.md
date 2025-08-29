@@ -2,7 +2,7 @@
 
 **Date:** August 29, 2025  
 **Time:** 02:00–03:00  
-**Location:** Zoom  
+**Location:** [Zoom](https://cpp.zoom.us/my/aimtiaz)  
 **Meeting Type:** Weekly  
 **Expected Duration:** 1 hour  
 **Attendees:** Areesha Imtiaz, Ivan Trinh, Arun Nambiar, Edwin Estrada, Len Sakimuka, Medha Swarnachandrabalaji, Wesley Dam  
