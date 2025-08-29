@@ -72,7 +72,7 @@
 ## 📅 Next Meeting
 
 **Date & Time:** August 29, 2025 @ 02:00    
-**Room:** Library Rm 5439   
+**Room:** Zoom
 **Pre-meeting task:** Fill out your Google slides and GitHub scrum
 
 ---
