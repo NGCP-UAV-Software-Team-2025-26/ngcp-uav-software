@@ -40,7 +40,8 @@
 
 **NGCP Kickoff Beach Party** – *Potluck Style*  
 - **Saturday, Aug 30 | 1PM**  
-- **Tower 40, Manhattan Beach**  
+- **Tower 40, Manhattan Beach**
+    
 ![NGCP Beach Party](../images/ngcp-beach-party.jpg)
 
 
@@ -48,13 +49,15 @@
 - **Industrial Security** – Sept 8, 6PM EST / 3PM PST  
 - **Avionics Integration & Software Engineering** – Sept 9, 6PM EST / 3PM PST  
 - **Vehicle Engineering & Test & Evaluation** – Sept 10, 6PM EST / 3PM PST  
-- **Product Support & Systems Engineering** – Sept 11, 6PM EST / 3PM PST  
+- **Product Support & Systems Engineering** – Sept 11, 6PM EST / 3PM PST
+    
 [NGAS Tech Talks PDF](../images/ngas-tech-talks.pdf)
 
 
 **CPP UAS Lab Workshop Series** – *UAS Design Tools & Software*  
 - First session: **Aircraft Modeling with OpenVSP**  
-- **Tuesday, Sept 9 | 12PM–1PM**  
+- **Tuesday, Sept 9 | 12PM–1PM**
+    
 ![UAS Workshop](../images/cpp-uas-workshop.png)
 
 ---
