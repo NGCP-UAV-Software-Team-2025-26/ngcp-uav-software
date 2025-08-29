@@ -9,7 +9,7 @@
 
 ---
 
-## 🧊 Icebreaker (Optional)
+## 🧊 Icebreaker
 
 - Name
 - Major 
