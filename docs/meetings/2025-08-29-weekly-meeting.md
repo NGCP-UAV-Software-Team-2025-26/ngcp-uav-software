@@ -30,7 +30,7 @@
 **NGCP Kickoff Beach Party** – *Potluck Style*  
 - **Saturday, Aug 30 | 1PM**  
 - **Tower 40, Manhattan Beach**  
-![NGCP Beach Party](Pink_Blue_and_Yellow_Illustrative_Summer_Beach_Party_Poster_1.jpg)  
+![NGCP Beach Party](docs/images/NGCP Kickoff Beach Party.jpg)  
 
 
 **Northrop Grumman Tech Talks – Fall 2025** (*Find Your Purpose Series*)  
