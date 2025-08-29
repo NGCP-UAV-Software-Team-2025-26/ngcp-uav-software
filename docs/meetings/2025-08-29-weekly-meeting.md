@@ -15,6 +15,14 @@
 
 ---
 
+## 🔄 Follow-Up from Last Meeting
+
+- [ ] Complete and upload the **16 Personality Test** results  
+- [ ] Change Discord display names to format: *Full Name | Software Role*  
+- [ ] Fill out **Google Slides**  
+
+---
+
 ## 📢 Updates & Announcements
 
 - If you **miss a meeting**, it is **your responsibility** to review the meeting’s **Markdown notes** and **Google Slides**
