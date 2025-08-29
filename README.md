@@ -24,7 +24,7 @@ This project will focus on developing and integrating software systems for an un
 ## 📅 Weekly Meetings
 
 - **Day:** Every Friday  
-- **Location:** In-person at the Cal Poly Pomona Library (Room 5439)
+- **Location:** In-person at the Cal Poly Pomona Library (Room 5439) & [Zoom](https://cpp.zoom.us/my/aimtiaz)  
 
 Weekly meeting notes will be stored in the `/docs/meetings/` folder.
 
@@ -60,6 +60,7 @@ ngcp-uav-software/
 ├── src/                # Source code will go here
 ├── docs/               # Project documentation
 │   └── meetings/       # Weekly meeting notes
+│   └── images/         # Events & Fylers information
 ├── scripts/            # Utility scripts and automation
 ├── tests/              # Unit and integration tests
 └── README.md           # You're here
