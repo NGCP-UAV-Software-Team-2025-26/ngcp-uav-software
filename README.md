@@ -57,10 +57,12 @@ TBD.
 
 ```plaintext
 ngcp-uav-software/
-├── src/                # Source code will go here
 ├── docs/               # Project documentation
+│   ├── images/         # Events & Flyers information
 │   └── meetings/       # Weekly meeting notes
-│   └── images/         # Events & Flyers information
 ├── scripts/            # Utility scripts and automation
+├── src/                # Source code
+│   ├── current/        # Active development code
+│   └── past/           # Placeholder for older code
 ├── tests/              # Unit and integration tests
 └── README.md           # You're here
