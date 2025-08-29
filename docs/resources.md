@@ -35,7 +35,7 @@ This document collects beginner-friendly resources for our UAV Software Team to 
 
 ## 💻 Programming
 - **Python**
-  - [Python Crash Course (book)](https://nostarch.com/pythoncrashcourse2e)  
+  - [Python Crash Course (book)](https://oceanofpdf.com/authors/eric-matthes/pdf-epub-python-crash-course-3rd-edition-download/) **Click PDF to download**    
   - [Automate the Boring Stuff (free)](https://automatetheboringstuff.com/)  
 
 - **C++**
