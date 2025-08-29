@@ -18,7 +18,11 @@
 ## 📢 Updates & Announcements
 
 - If you **miss a meeting**, it is **your responsibility** to review the meeting’s **Markdown notes** and **Google Slides**
-- We will also have a **Zoom meeting during our in-person meeting** so Wesley can join. While Zoom will be available, everyone is expected to attend **in person**. If you cannot attend in person and want to join via Zoom, please let me know **before the meeting with a valid reason**.  
+- We will also have a **Zoom meeting during our in-person meeting** so Wesley can join. While Zoom will be available, everyone is expected to attend **in person**. If you cannot attend in person and want to join via Zoom, please let me know **before the meeting with a valid reason**.
+- **Repository Updates:**  
+  - Updated the **Tech Stack** in the repository `README.md`  
+  - Added **resources** to learn the Tech Stack (`docs/resources.md`)  
+  - Created a **Weekly Demo Google Sheet** to track progress  
 
 ---
 
