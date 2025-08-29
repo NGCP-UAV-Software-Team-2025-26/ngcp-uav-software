@@ -25,21 +25,6 @@
 
 ---
 
-## 🚧 Weekly Project Updates
-
-| Member                    | Accomplishments This Week              | Next Steps                           |
-|---------------------------|----------------------------------------|--------------------------------------|
-| Areesha Imtiaz            |                                        |                                      |
-| Ivan Trinh                |                                        |                                      |
-| Arun Nambiar              |                                        |                                      |
-| Edwin Estrada             |                                        |                                      |
-| Elijah Chan               |                                        |                                      |
-| Len Sakimukai             |                                        |                                      |
-| Medha Swarnachandrabalaji |                                        |                                      |
-| Wesley Dam                |                                        |                                      |
-
----
-
 ## 🎯 Action Items
 
 - [ ] Upload personality test results to OneDrive *(if not already completed)*  
