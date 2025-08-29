@@ -44,7 +44,7 @@
 **CPP UAS Lab Workshop Series** – *UAS Design Tools & Software*  
 - First session: **Aircraft Modeling with OpenVSP**  
 - **Tuesday, Sept 9 | 12PM–1PM**  
-![UAS Workshop](image.png)  
+![UAS Workshop](../images/cpp-uas-workshop.png)
 
 ---
 
