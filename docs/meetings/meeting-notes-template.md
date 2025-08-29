@@ -8,7 +8,7 @@
 
 ---
 
-## 🧊 Icebreaker (Optional)
+## 🧊 Icebreaker 
 
 > [Fun or quick team prompt like “What’s your favorite drone design?” or “What's one tech tool you can't live without?”]
 
