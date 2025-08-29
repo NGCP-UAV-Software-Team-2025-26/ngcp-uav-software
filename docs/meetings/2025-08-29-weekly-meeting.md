@@ -23,6 +23,9 @@
 - Keep an eye out: the **RFP release is expected in October**  
 - Our **Friday meeting room** will remain Library Rm 5439 (unless noted otherwise)  
 
+---
+
+### 📌 Flyers & Events
 
 **NGCP Kickoff Beach Party** – *Potluck Style*  
 - **Saturday, Aug 30 | 1PM**  
