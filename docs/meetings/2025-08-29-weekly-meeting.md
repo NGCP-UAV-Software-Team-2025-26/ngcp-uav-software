@@ -56,7 +56,8 @@
 
 - [ ] **Next Friday’s meeting conflict:** Areesha has another meeting from 1–3PM. Vote:  
   - Should Ivan lead the meeting?  
-  - Or do we want to call off the next meeting?  
+  - Or do we want to call off the next meeting?
+- [ ] Questions from any member(s)  
 
 ---
 
