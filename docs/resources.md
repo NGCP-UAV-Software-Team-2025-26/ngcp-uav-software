@@ -40,7 +40,7 @@ This document collects beginner-friendly resources for our UAV Software Team to 
 
 - **C++**
   - [LearnCpp.com](https://www.learncpp.com/)  
-  - [Programming Principles and Practice Using C++](https://www.stroustrup.com/programming.html)  
+  - [Programming Principles and Practice Using C++](https://csu-cpp.primo.exlibrisgroup.com/discovery/fulldisplay?docid=alma991071822586402901&context=L&vid=01CALS_PUP:01CALS_PUP&lang=en&search_scope=everything&adaptor=Local%20Search%20Engine&tab=Everything&query=any,contains,Programming%20Principles%20and%20Practice%20Using%20C%2B%2B)  
 
 ---
 
