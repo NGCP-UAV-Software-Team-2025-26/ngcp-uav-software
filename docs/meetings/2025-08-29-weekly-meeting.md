@@ -17,11 +17,8 @@
 
 ## 📢 Updates & Announcements
 
-- Please complete and upload your **16 Personality Test** results by **August 28, 2025**  
-- Make sure your **Discord display name** follows the format: *Full Name | Software Role*  
-- Fill out your **Google Slides introduction** and **GitHub scrum updates** before today’s meeting  
-- Keep an eye out: the **RFP release is expected in October**  
-- Our **Friday meeting room** will remain Library Rm 5439 (unless noted otherwise)  
+- If you **miss a meeting**, it is **your responsibility** to review the meeting’s **Markdown notes** and **Google Slides**
+- We will also have a **Zoom meeting during our in-person meeting** so Wesley can join. While Zoom will be available, everyone is expected to attend **in person**. If you cannot attend in person and want to join via Zoom, please let me know **before the meeting with a valid reason**.  
 
 ---
 
@@ -50,9 +47,8 @@
 
 ## 🎯 Action Items
 
-- [ ] Upload personality test results to OneDrive *(if not already completed)*  
-- [ ] Update GitHub Project board before next meeting  
-- [ ] Review GitHub workflow guide  
+- [ ] When Ivan uploads the **code from last year**, everyone should review it
+- [ ] 
 
 ---
 
