@@ -2,28 +2,16 @@
 
 **Date:** August 29, 2025  
 **Time:** 02:00–03:00  
-**Location:** Cal Poly Pomona Library (Room 5439)  
+**Location:** Zoom  
 **Meeting Type:** Weekly  
 **Expected Duration:** 1 hour  
-
----
-
-## 👥 Attendees
-
-- Areesha Imtiaz (Software Lead)  
-- Ivan Trinh  
-- Arun Nambiar  
-- Edwin Estrada  
-- Elijah Chan  
-- Len Sakimukai  
-- Medha Swarnachandrabalaji  
-- Wesley Dam  
+**Attendees:** Areesha Imtiaz, Ivan Trinh, Arun Nambiar, Edwin Estrada, Len Sakimuka, Medha Swarnachandrabalaji, Wesley Dam  
 
 ---
 
 ## 🧊 Icebreaker (Optional)
 
-- What’s one app/tool you use daily that makes your life easier?  
+- What’s your go-to study spot on campus?  
 
 ---
 
@@ -87,8 +75,8 @@
 
 ## ✨ Notes & Side Comments
 
-- Google Slides Presentation: [**Link**](https://docs.google.com/presentation/d/1O-T6qLBhSW0XHsmgtrHCjn8CLazO4TjsXEVZkZ1KhDs/edit?usp=sharing)  
+- Google Slides Presentation: [**Link**]([https://docs.google.com/presentation/d/1O-T6qLBhSW0XHsmgtrHCjn8CLazO4TjsXEVZkZ1KhDs/edit?usp=sharing](https://docs.google.com/presentation/d/1Agzk9NxDMg9ONE8-3sUQFq6Kp19H5b1B4Kgiv__WXyU/edit?usp=sharing))  
 
 ---
 
-**Note-taker:** [Name TBD]
+**Note-taker:** Areesha Imtiaz
