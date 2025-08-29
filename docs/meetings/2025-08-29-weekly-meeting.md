@@ -71,7 +71,7 @@
 
 **Date & Time:** September 5, 2025 @ 02:00  
 **Room:** Library Rm 5439  
-**Pre-meeting task:** Review potential tech stack options and bring at least 1 suggestion  
+**Pre-meeting task:** Fill out your Google slides    
 
 ---
 
