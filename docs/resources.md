@@ -46,7 +46,7 @@ This document collects beginner-friendly resources for our UAV Software Team to 
 
 ## 🔧 Hardware
 - **Raspberry Pi 5**
-  - [Raspberry Pi Getting Started Guide](https://projects.raspberrypi.org/en/pathways/getting-started-with-raspberry-pi)  
+  - [Raspberry Pi Getting Started Guide](https://www.raspberrypi.com/documentation/computers/getting-started.html)  
   - Practice: setup Ubuntu Server / Raspberry Pi OS, run Python scripts  
 
 - **Radio Frequency & Autonomy**
