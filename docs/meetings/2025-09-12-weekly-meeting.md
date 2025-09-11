@@ -53,7 +53,7 @@
 ---
 
 ## ✨ Notes & Side Comments
-- [Presentation Link](https://docs.google.com/presentation/d/1KjBQzDWobRjV8eZo17tsZgKIKc5ak_FTqMcQhfxnKRQ/edit?usp=sharing)  
+- [Presentation Link](https://docs.google.com/presentation/d/1h0nEU2DgqmY4pFlVDKJ0oSshcKgK-agvtYppboTs3uk/edit?usp=sharing)
 
 ---
 
