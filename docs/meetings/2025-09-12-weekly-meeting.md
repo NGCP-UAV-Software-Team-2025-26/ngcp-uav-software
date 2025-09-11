@@ -57,4 +57,4 @@
 
 ---
 
-**Note-taker:** TBD
+**Note-taker:** Areesha Imtiaz  
