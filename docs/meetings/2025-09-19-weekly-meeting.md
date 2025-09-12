@@ -59,8 +59,6 @@
 ---
 
 ## ✨ Notes & Side Comments
-- Additional thoughts, informal notes, or useful links.  
-- Ideas raised that don’t fit in other sections.
 - **[Presentation Slides](https://docs.google.com/presentation/d/1Z8tPjfNi4gkTL_HwZvY4XNjnNWywtJrTeft0WCnnsXE/edit?usp=sharing)**
 
 ---
