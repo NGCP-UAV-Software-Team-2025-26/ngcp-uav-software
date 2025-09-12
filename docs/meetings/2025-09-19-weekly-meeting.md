@@ -44,7 +44,7 @@
 
 ---
 ## 📅 Next Meeting
-**Date & Time:** September 16, 2025 @ 02:00  
+**Date & Time:** September 26, 2025 @ 02:00  
 **Room:** Library Rm 5439     
 **Pre-meeting task:** Complete your **Google Slides**
 
