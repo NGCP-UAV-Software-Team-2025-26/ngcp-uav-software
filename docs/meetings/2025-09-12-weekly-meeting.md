@@ -30,7 +30,7 @@
 - **Team Kickoff Meeting** → **Thursday, 9/18 during U-Hour** (Location **TBD**)
 - **UAS Club** (Tristan)
   - **Topics:** OpenVSP, SolidWorks, MATLAB (**with Cade in October**), learning to fly
-  - **[Discord:](https://discord.gg/E8XVkGXT)**   
+  - **[Discord](https://discord.gg/E8XVkGXT)**   
 
 ---
 
