@@ -1,12 +1,12 @@
 # NGCP Software Team – Weekly Meeting Notes
 
-**Date:** [Month Day, Year]  
-**Time:** [Start–End Time]  
-**Location:** [Meeting room / Zoom link]  
-**Meeting Type:** [Weekly / Planning / Check-in / Special Session]  
-**Expected Duration:** [e.g., 1 hour]  
-**Attendees:** [List of names]
-
+**Date:** September 19, 2025  
+**Time:** 02:00–03:00  
+**Location:** Library Rm 5441 **AND** [Zoom](https://cpp.zoom.us/my/aimtiaz)  
+**Meeting Type:** Weekly  
+**Expected Duration:** 1 hour  
+**Attendees:** Areesha Imtiaz, Ivan Trinh, Arun Nambiar, Edwin Estrada, Elijah Chan, Len Sakimuka, Medha Swarnachandrabalaji, Wesley Dam 
+  
 ---
 
 ## 🧊 Icebreaker
