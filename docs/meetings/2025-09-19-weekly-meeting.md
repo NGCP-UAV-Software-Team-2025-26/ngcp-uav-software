@@ -10,51 +10,43 @@
 ---
 
 ## 🧊 Icebreaker
-> A quick prompt or fun question to help the team engage and start the meeting.
+> What class are you most hyped for this semester?
 
 ---
 
 ## 🔄 Follow-Up from Last Meeting
-- Items assigned in the previous meeting that need to be completed or updated.  
+- TBD.  
 
 ---
 
 ## 📢 Updates & Announcements
-- General updates, reminders, or important information.  
-- Project, repository, or resource changes.  
-- Collaboration or cross-team opportunities.  
-- Any advisor, organization, or school-related announcements.  
+- TBD.  
 
 ---
 
 ## 📌 Flyers & Events
-- Information about upcoming events, workshops, or activities.  
-- Include dates, times, locations, and links/resources when available.  
+- TBD.  
 
 ---
 
 ## 🎯 Action Items
-- Tasks assigned to specific members with due dates.  
-- Clear deliverables to be completed before the next meeting.  
+- TBD.  
 
 ---
 
 ## 🧠 Discussion Topics
-- Main topics to cover during the meeting.  
-- Questions, challenges, or feedback from members.  
-- Project planning, technical decisions, or brainstorming.  
+- TBD.  
 
 ---
 
 ## 📌 Decisions Made
-- Key choices or agreements finalized during the meeting.  
-- Record votes, outcomes, and consensus.  
+- TBD.  
 
 ---
-
 ## 📅 Next Meeting
-- Date, time, and location (or Zoom link).  
-- Any tasks or preparations required before the next meeting.  
+**Date & Time:** September 16, 2025 @ 02:00  
+**Room:** Library Rm 5439     
+**Pre-meeting task:** Complete your **Google Slides**
 
 ---
 
