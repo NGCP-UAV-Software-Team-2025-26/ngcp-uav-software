@@ -53,7 +53,7 @@ TBD.
 ---
 
 
-## 📁 Repository Structure (Planned)
+## 📁 Repository Structure  
 
 ```plaintext
 ngcp-uav-software/
