@@ -1,4 +1,4 @@
-# NGCP Software Team – Weekly Meeting Notes
+# NGCP Software Team – 2025-09-26
 
 **Date:** September 26, 2025  
 **Time:** 03:00–03:45  
