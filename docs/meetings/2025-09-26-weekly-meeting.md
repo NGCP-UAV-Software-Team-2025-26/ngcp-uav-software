@@ -23,7 +23,7 @@
 
 ## 🎯 Action Items
 
-- Please fill out this [survey](#) regarding the **Architecture** teams.  
+- Please fill out this [survey](https://docs.google.com/forms/d/e/1FAIpQLSeElBlX0C3ELZCTua3blBMnJ_F7-Agg2juRj-FXimvRbAh0pg/viewform?usp=sharing&ouid=105951295251564701822) regarding the **Architecture** teams.  
 
 ---
 
