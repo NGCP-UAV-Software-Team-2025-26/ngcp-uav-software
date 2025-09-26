@@ -11,47 +11,28 @@
 
 ## 🧊 Icebreaker
 
-- TBD.  
-
----
-
-## 🔄 Follow-Up from Last Meeting
-
-- TBD.  
+- If you could have one superpower, what would it be (and why)?  
 
 ---
 
 ## 📢 Updates & Announcements
 
-- TBD.  
-
----
-
-## 📌 Flyers & Events
-
-TBD.  
+- Any updates from the Electrical liaisons?  
 
 ---
 
 ## 🎯 Action Items
 
-- TBD.  
-
----
-
-## 🧠 Discussion Topics
-
-- TBD.
-  
----
-
-## 📌 Decisions Made
-- TBD.  
+- Please fill out this [survey](#) regarding the **Architecture** teams.  
 
 ---
 
 ## 🧪 Weekly Demo
-- TBD.  
+
+- Mission Planning with MAVSDK  
+- Raspberry Pi 5 Setup & Integration  
+- Sensors & Autonomy (RFP-Dependent Placeholder)  
+
 ---
 
 ## 📅 Next Meeting
