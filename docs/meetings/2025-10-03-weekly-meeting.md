@@ -64,7 +64,7 @@ TBD.
 
 ## ✨ Notes & Side Comments
 
-- **Presentation Link**
+- **[Presentation Link](https://docs.google.com/presentation/d/1QykJrPgQR9U0nCVyZdWVGdp5exYk8fRGJwxkw0hyhZw/edit?usp=sharing)**
 
 ---
 
