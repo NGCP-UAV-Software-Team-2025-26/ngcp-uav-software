@@ -6,7 +6,7 @@
 **Location:** TBD  
 **Meeting Type:** Weekly  
 **Expected Duration:** 1 hour  
-**Attendees:** [List all attendees here]  
+**Attendees:** Areesha Imtiaz, Ivan Trinh, Arun Nambiar, Edwin Estrada, Elijah Chan, Len Sakimuka, Medha Swarnachandrabalaji  
 
 ---
 
@@ -75,5 +75,5 @@
 - [Extra remarks, helpful resources, or reminders]  
 - [Link(s) to presentations, docs, etc.]  
 
-**Presentation Link:** [Insert Link Here]  
-**Note-taker:** [Name]  
+**Presentation Link:**    
+**Note-taker:** Areesha Imtiaz  
