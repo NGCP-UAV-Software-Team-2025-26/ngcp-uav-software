@@ -26,7 +26,17 @@
 - [Project or RFP updates]  
 - [Repository or documentation changes]  
 - [Collaboration or scheduling updates]  
-- [External events, deadlines, or reminders]  
+- [External events, deadlines, or reminders]
+
+### 🧩 Liaison Updates  
+#### Electrical Liaison  
+- [ ] [Update or discussion point from Electrical team]  
+
+#### Payload Liaison  
+- [ ] [Update or discussion point from Payload team]  
+
+#### GCS Software Liaison  
+- [ ] [Update or discussion point from GCS Software team]  
 
 ---
 
