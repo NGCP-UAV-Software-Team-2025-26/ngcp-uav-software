@@ -30,13 +30,13 @@
 
 ### 🧩 Liaison Updates  
 #### Electrical Liaison  
-- [ ] [Update or discussion point from Electrical team]  
+- [ ] [Minutes of the Meeting]  
 
 #### Payload Liaison  
-- [ ] [Update or discussion point from Payload team]  
+- [ ] [Minutes of the Meeting]  
 
 #### GCS Software Liaison  
-- [ ] [Update or discussion point from GCS Software team]  
+- [ ] [Minutes of the Meeting]  
 
 ---
 
