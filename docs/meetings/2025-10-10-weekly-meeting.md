@@ -64,6 +64,17 @@
 
 ---
 
+## 🧭 Weekly Update (Scrum)
+- Areesha Imtiaz    
+- Ivan Trinh  
+- Arun Nambiar  
+- Edwin Estrada  
+- Elijah Chan  
+- Len Sakimukai  
+- Medha Swarnachandrabalaji
+
+---
+
 ## 📅 Next Meeting  
 **Date & Time:** October 17, 2025 @ 03:00    
 **Room:** Library Rm 5439    
