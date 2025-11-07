@@ -1,9 +1,9 @@
 
-# NGCP Software Team – YYYY-MM-DD
+# NGCP Software Team – 2025-10-10
 
-**Date:** Month Day, Year  
-**Time:** HH:MM–HH:MM  
-**Location:** [e.g., Library Rm 5439 AND Zoom]  
+**Date:** October 10, 2025  
+**Time:** TBD  
+**Location:** TBD  
 **Meeting Type:** Weekly  
 **Expected Duration:** 1 hour  
 **Attendees:** [List all attendees here]  
