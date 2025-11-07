@@ -94,6 +94,6 @@
 - [Extra remarks, helpful resources, or reminders]  
 - [Link(s) to presentations, docs, etc.]  
 
-**Presentation Link**    
+**[Presentation Link](https://docs.google.com/presentation/d/1tuXnX84tQ1EsepwyV7m8-nxIsI4dXeWWKNFs3-lSgP4/edit?usp=sharing)**    
 **Note-taker:** Areesha Imtiaz  
 
