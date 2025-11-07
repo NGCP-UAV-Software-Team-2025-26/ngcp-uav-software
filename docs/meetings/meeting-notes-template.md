@@ -1,67 +1,98 @@
-# NGCP Software Team – Weekly Meeting Notes
+# NGCP Software Team – [Date]
 
-**Date:** [Month Day, Year]  
-**Time:** [Start–End Time]  
-**Location:** [Meeting room / Zoom link]  
-**Meeting Type:** [Weekly / Planning / Check-in / Special Session]  
-**Expected Duration:** [e.g., 1 hour]  
-**Attendees:** [List of names]
-
----
-
-## 🧊 Icebreaker
-> A quick prompt or fun question to help the team engage and start the meeting.
+**Date:** [Insert Date]  
+**Time:** [Insert Time]  
+**Location:** [Insert Location]  
+**Meeting Type:** Weekly  
+**Expected Duration:** 1 hour  
+**Attendees:** Areesha Imtiaz, Ivan Trinh, Arun Nambiar, Edwin Estrada, Elijah Chan, Len Sakimuka, Medha Swarnachandrabalaji  
 
 ---
 
-## 🔄 Follow-Up from Last Meeting
-- Items assigned in the previous meeting that need to be completed or updated.  
+## 🧊 Icebreaker  
+> [Insert a short question for the team — e.g., “What’s one tech tool you can’t live without?”]  
 
 ---
 
-## 📢 Updates & Announcements
-- General updates, reminders, or important information.  
-- Project, repository, or resource changes.  
-- Collaboration or cross-team opportunities.  
-- Any advisor, organization, or school-related announcements.  
+## 🔄 Follow-Up from Last Meeting  
+- [ ] [Follow-up item #1]  
+- [ ] [Follow-up item #2]  
+- [ ] [Follow-up item #3]  
 
 ---
 
-## 📌 Flyers & Events
-- Information about upcoming events, workshops, or activities.  
-- Include dates, times, locations, and links/resources when available.  
+## 📢 Updates & Announcements  
+- [Project or RFP updates]  
+- [Repository or documentation changes]  
+- [Collaboration or scheduling updates]  
+- [External events, deadlines, or reminders]  
+
+### 🧩 Liaison Updates  
+#### Electrical Liaison  
+- [ ] [Update or discussion point from Electrical team]  
+
+#### Payload Liaison  
+- [ ] [Update or discussion point from Payload team]  
+
+#### GCS Software Liaison  
+- [ ] [Update or discussion point from GCS Software team]  
 
 ---
 
-## 🎯 Action Items
-- Tasks assigned to specific members with due dates.  
-- Clear deliverables to be completed before the next meeting.  
+## 📌 Flyers & Events *(optional)*  
+**Upcoming Events:**  
+- [Event Name – Date | Time | Location | Notes]  
+- [Event Name – Date | Time | Location | Notes]  
 
 ---
 
-## 🧠 Discussion Topics
-- Main topics to cover during the meeting.  
-- Questions, challenges, or feedback from members.  
-- Project planning, technical decisions, or brainstorming.  
+## 🎯 Action Items  
+- [ ] [Task 1 – deadline or owner]  
+- [ ] [Task 2]  
+- [ ] [Task 3]  
 
 ---
 
-## 📌 Decisions Made
-- Key choices or agreements finalized during the meeting.  
-- Record votes, outcomes, and consensus.  
+## 🧠 Discussion Topics  
+- [Topic 1 – e.g., Software Architecture Discussion]  
+- [Topic 2 – e.g., Tech Stack Decisions]  
+- [Topic 3 – Questions / Open floor]  
 
 ---
 
-## 📅 Next Meeting
-- Date, time, and location (or Zoom link).  
-- Any tasks or preparations required before the next meeting.  
+## 🧪 Weekly Demo *(optional)*  
+**Topic:** [Demo title or subject]  
+**Presenter:** [Name]  
+**Summary:** [Short description]  
 
 ---
 
-## ✨ Notes & Side Comments
-- Additional thoughts, informal notes, or useful links.  
-- Ideas raised that don’t fit in other sections.  
+## 📌 Decisions Made  
+- [Decision 1 – e.g., Chose Python as primary programming language]  
+- [Decision 2 – e.g., Approved new GitHub workflow]  
 
 ---
 
-**Note-taker:** [Name]  
+## 🧭 Weekly Update (Scrum)
+- Areesha Imtiaz    
+- Ivan Trinh  
+- Arun Nambiar  
+- Edwin Estrada  
+- Elijah Chan  
+- Len Sakimukai  
+- Medha Swarnachandrabalaji
+
+---
+
+## 📅 Next Meeting  
+**Date & Time:** [Insert Date & Time]  
+**Room:** [Insert Location]  
+
+---
+
+## ✨ Notes & Side Comments  
+- [Extra remarks, helpful resources, or reminders]  
+- [Link(s) to presentations, docs, etc.]  
+
+**[Presentation Link](https://docs.google.com/presentation/d/1oN45QzujixcjYuEzGYVmwXjXCRjSCLuZST_5nroUcLU/edit?usp=sharing)**    
+**Note-taker:** Areesha Imtiaz  
