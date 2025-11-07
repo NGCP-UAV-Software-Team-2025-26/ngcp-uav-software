@@ -65,9 +65,8 @@
 ---
 
 ## 📅 Next Meeting  
-**Date & Time:** [Next Meeting Date @ Time]  
-**Room:** [Location or Zoom]  
-**Pre-meeting Task:** [Task to complete before next meeting]  
+**Date & Time:** October 17, 2025 @ 03:00    
+**Room:** Library Rm 5439    
 
 ---
 
@@ -75,5 +74,5 @@
 - [Extra remarks, helpful resources, or reminders]  
 - [Link(s) to presentations, docs, etc.]  
 
-**Presentation Link:**    
+**Presentation Link**    
 **Note-taker:** Areesha Imtiaz  
