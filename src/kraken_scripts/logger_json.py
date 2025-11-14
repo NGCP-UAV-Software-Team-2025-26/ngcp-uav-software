@@ -12,13 +12,14 @@ OUT_FILE = "/home/ngcp25/kraken_logs/doa_log.jsonl"
 # Polling rate (seconds)
 UPDATE_RATE = 0.1  # 10 Hz or match Kraken update rate
 
-
+count=-1
 def log_once():
+    global count
+    
     try:
         r = requests.get(DOA_URL, timeout=1)
         line = r.text.strip()
         fields = line.split(',')
-
         # Build JSON object with selected fields
         entry = {
             "epoch": float(fields[0]),
@@ -27,16 +28,20 @@ def log_once():
             "lat": float(fields[9]),
             "lon": float(fields[10]),
             "gps_heading": float(fields[11]),
-          #  "compass_heading": float(fields[12]),
+            #"compass_heading": float(fields[12]),
         }
 
         # Append JSON object to file
         with open(OUT_FILE, "a") as f:
-            f.write(json.dumps(entry) + "\n")
+            if count != float(fields[0]):
+                print(count)
+                print(float(fields[0]))
+                f.write(json.dumps(entry) + "\n")
+                count=float(fields[0])
 
     except Exception as e:
         print("Error:", e)
-
+    
 
 def main():
     while True:
@@ -46,5 +51,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
