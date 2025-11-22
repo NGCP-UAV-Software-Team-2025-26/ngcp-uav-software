@@ -1,6 +1,8 @@
 import asyncio
 import time
 import threading
+import json
+import os
 
 #from Packet.Telemetry.Telemetry import Telemetry
 shared_telemetry = {
@@ -64,6 +66,32 @@ async def get_Telem():
         print(f"Battery:           {battery.remaining_percentage*100:.1f}%")
         print(f"Status:            {status.text}")
 
+#Writing Part
+FC_OUT_FILE = "/home/ngcp25/kraken_logs/fc_telem.json"
+FC_WRITE_HZ = 20.0
+FC_WRITE_PERIOD = 1.0 / FC_WRITE_HZ
+
+async def telemetry_writer():
+
+    os.makedirs(os.path.dirname(FC_OUT_FILE), exist_ok=True) #checks if directory exists or creates it
+
+    while True:
+        try:
+            with telemetry_lock:
+                snapshot = dict(shared_telemetry)  #copy current state
+
+            tmp_path = FC_OUT_FILE + ".tmp"
+            with open(tmp_path, "w") as f:
+                json.dump(snapshot, f)
+
+            os.replace(tmp_path, FC_OUT_FILE)  #atomic swap makes sure that a file is never half written or corrupted
+
+        except Exception as e:
+            print("[TELEM WRITER ERROR]", e)
+
+        await asyncio.sleep(FC_WRITE_PERIOD)
+
+
 async def main():
     await UAV.connect(system_address="udp://:14540")
 
@@ -83,6 +111,10 @@ async def main():
 
     #Starts getting telemetry 
     asyncio.create_task(get_Telem())
+    
+    #Starts writing telemetry
+    asyncio.create_task(telemetry_writer())
+
 
     #Keeps alive
     while True:
@@ -90,3 +122,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
