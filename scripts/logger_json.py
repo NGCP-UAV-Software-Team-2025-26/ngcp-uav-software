@@ -19,25 +19,28 @@ def log_once():
     try:
         r = requests.get(DOA_URL, timeout=1)
         line = r.text.strip()
-        fields = line.split(',')
-        # Build JSON object with selected fields
-        entry = {
-            "epoch": float(fields[0]),
-            "doa": float(fields[1]),               # unit-circle DoA (0°=East CCW)
-            "confidence": float(fields[2]),
-            "lat": float(fields[9]),
-            "lon": float(fields[10]),
-            "gps_heading": float(fields[11]),
-            #"compass_heading": float(fields[12]),
-        }
+        if line != '':
+            fields = line.split(',')
+            # Build JSON object with selected fields
+            entry = {
+                "epoch": float(fields[0]),
+                "doa": float(fields[1]),               # unit-circle DoA (0°=East CCW)
+                "confidence": float(fields[2]),
+                "lat": float(fields[9]),
+                "lon": float(fields[10]),
+                "gps_heading": float(fields[11]),
+                #"compass_heading": float(fields[12]),
+            }
 
-        # Append JSON object to file
-        with open(OUT_FILE, "a") as f:
-            if count != float(fields[0]):
-                print(count)
-                print(float(fields[0]))
-                f.write(json.dumps(entry) + "\n")
-                count=float(fields[0])
+            # Append JSON object to file
+            with open(OUT_FILE, "a") as f:
+                if count != float(fields[0]):
+                    print(count)
+                    print(float(fields[0]))
+                    f.write(json.dumps(entry) + "\n")
+                    count=float(fields[0])
+        else:
+            print("no incoming signal yet")
 
     except Exception as e:
         print("Error:", e)
