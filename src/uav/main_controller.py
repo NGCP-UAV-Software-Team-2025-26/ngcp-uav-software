@@ -1,7 +1,6 @@
 import asyncio 
 import logging
-from turtle import pos
-from mavsdk import system
+from mavsdk import System
 #system brings the following
 
 #drone.telemetry
@@ -32,8 +31,8 @@ async def run():
     
     position = await drone.telemetry.position().__aiter__().__anext__()
     #this gives lat, lon, absolute_altitude_m, relative_altitude_m
-    lat = pos.latitude_deg
-    lon = pos.longitude_deg
+    lat = position.latitude_deg
+    lon = position.longitude_deg
     rel_alt = 60.0
 
     print(f"Home-ish position: {lat}, {lon}")
@@ -86,6 +85,6 @@ async def run():
 
     print("Returning to launch...")
     await drone.action.return_to_launch()
-    
+
 if __name__ == "__main__":
-  asyncio.run(run())
+  asyncio.run(run())    
