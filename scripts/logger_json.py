@@ -2,12 +2,16 @@
 import time
 import json
 import requests
+import os
 
 # Kraken DOA endpoint (LOCALHOST on Pi)
 DOA_URL = "http://127.0.0.1:8081/DOA_value.html"
 
 # Output JSON log file (JSON Lines format)
 OUT_FILE = "/home/ngcp25/kraken_logs/doa_log.jsonl"
+
+# Ensure output directory exists
+os.makedirs(os.path.dirname(OUT_FILE), exist_ok=True)
 
 # Polling rate (seconds)
 UPDATE_RATE = 0.1  # 10 Hz or match Kraken update rate
@@ -58,6 +62,7 @@ def main():
     while True:
         if krakenOnline():
             break
+        print("Connection attempt failed, retrying")
         time.sleep(UPDATE_RATE)
     print("KrakenSDR server online\n")
     while True:
