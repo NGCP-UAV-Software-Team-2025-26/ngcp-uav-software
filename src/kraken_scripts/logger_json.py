@@ -2,26 +2,35 @@
 import time
 import json
 import requests
+from pathlib import Path
 
 # Kraken DOA endpoint (LOCALHOST on Pi)
 DOA_URL = "http://127.0.0.1:8081/DOA_value.html"
-
-# Output JSON log file (JSON Lines format)
-OUT_FILE = "/home/ngcp25/kraken_logs/doa_log.jsonl"
-
 # Polling rate (seconds)
 UPDATE_RATE = 0.1  # 10 Hz or match Kraken update rate
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+LOG_DIR = BASE_DIR / "logs" / "kraken"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Output JSON log file (JSON Lines format)
+OUT_FILE = LOG_DIR / "doa.jsonl"
+
+
 
 count=-1
 def log_once():
     global count
     
     try:
+        t_rx = time.time() #Pi receipt time
+
         r = requests.get(DOA_URL, timeout=1)
         line = r.text.strip()
         fields = line.split(',')
         # Build JSON object with selected fields
         entry = {
+            "t_rx": t_rx,
             "epoch": float(fields[0]),
             "doa": float(fields[1]),               # unit-circle DoA (0°=East CCW)
             "confidence": float(fields[2]),
