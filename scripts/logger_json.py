@@ -44,9 +44,22 @@ def log_once():
 
     except Exception as e:
         print("Error:", e)
-    
+
+def krakenOnline() -> bool:
+    print("Connecting to KrakenSDR server");
+    try:
+        response = requests.get("http://127.0.0.1:8080/", timeout=2)
+        print(response.status_code)
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
 
 def main():
+    while True:
+        if krakenOnline():
+            break
+        time.sleep(UPDATE_RATE)
+    print("KrakenSDR server online\n")
     while True:
         log_once()
         time.sleep(UPDATE_RATE)
