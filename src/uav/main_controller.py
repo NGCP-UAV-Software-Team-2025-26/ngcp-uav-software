@@ -1,13 +1,16 @@
 import asyncio 
 import logging
+from math import nan
 from mavsdk import System
-#system brings the following
 
+
+#system brings the following
 #drone.telemetry
 #drone.action
 #drone.mission
 #drone.offboard
 #drone.core
+
 from mavsdk.mission import MissionItem, MissionPlan
 
 
@@ -54,28 +57,47 @@ async def run():
         camera_photo_interval_s=float('nan'),
         acceptance_radius_m=50.0,#Big raidus needed for a fixed wing
         yaw_deg=float('nan'),
-        camera_photo_distance_m=float('nan')
+        camera_photo_distance_m=float('nan'),
+        vehicle_action=MissionItem.VehicleAction.NONE,
+        
     )
 
-    mission_plan = MissionPlan([loiter_item])
+    land_item = MissionItem(
+        latitude_deg=lat,
+        longitude_deg=lon,
+        relative_altitude_m=0.0,   # landing at ground
+        speed_m_s=15.0,
+        is_fly_through=True,
+        gimbal_pitch_deg=nan,
+        gimbal_yaw_deg=nan,
+        camera_action=MissionItem.CameraAction.NONE,
+        loiter_time_s=0.0,
+        camera_photo_interval_s=nan,
+        acceptance_radius_m=50.0,
+        yaw_deg=nan,
+        camera_photo_distance_m=nan,
+        vehicle_action=MissionItem.VehicleAction.LAND,
+    )
+
+
+
+    mission_plan = MissionPlan([loiter_item, land_item])
 
     print("Uploading mission...")
     await drone.mission.upload_mission(mission_plan)
    
+    await drone.mission.set_current_mission_item(0)
 
 
-    print ("Arming..")
+    print("Arming..")
     await drone.action.arm()
-    
-    print("Taking off..")
-    await drone.action.takeoff()
-    
-  
-    
+
+    print("Starting mission..")
+    await drone.mission.start_mission()
+
     await asyncio.sleep (10)
 
-    print("Starting mission (loiter)...")
-    await drone.mission.start_mission()
+
 
     async for progress in drone.mission.mission_progress():
         print(f"Mission progress: {progress.current}/{progress.total}")

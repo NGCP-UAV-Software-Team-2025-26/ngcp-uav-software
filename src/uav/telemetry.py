@@ -1,125 +1,146 @@
 import asyncio
 import time
-import threading
 import json
+from pathlib import Path
 import os
-
-#from Packet.Telemetry.Telemetry import Telemetry
-shared_telemetry = {
-    "lat": None,
-    "lon": None,
-    "heading": None,
-    "airspeed": None,
-    "battery": None,
-    "status": None,
-    "timestamp": None
-}
-
-
-#from Logger.Logger import Logger
-
-def log(msg):
-    print(f"[LOG] {msg}")
-
 
 from mavsdk import System
 
-# ---------------- SHARED RESOURCES ----------------
-#shared_telemetry = Telemetry()
-#logger = Logger()
-telemetry_lock = threading.Lock()
 
-UAV = System()
-
-# ---------------- TELEMETRY FUNCTIONS ----------------
-
-async def get_Telem():
-
-    pos_gen = UAV.telemetry.position()
-    euler_gen = UAV.telemetry.attitude_euler()  
-    fw_gen = UAV.telemetry.fixedwing_metrics()
-    batt_gen = UAV.telemetry.battery()
-    status_gen = UAV.telemetry.status_text()
-
-    while True:
-        pos      = await pos_gen.__anext__()
-        euler    = await euler_gen.__anext__()
-        fw       = await fw_gen.__anext__()
-        battery  = await batt_gen.__anext__()
-        status   = await status_gen.__anext__()
-
-        with telemetry_lock:
-          shared_telemetry["lat"]       = pos.latitude_deg
-          shared_telemetry["lon"]       = pos.longitude_deg
-          shared_telemetry["heading"]   = euler.yaw_deg
-          shared_telemetry["airspeed"]  = fw.airspeed_m_s
-          shared_telemetry["battery"]   = battery.remaining_percentage
-          shared_telemetry["status"]    = status.text
-          shared_telemetry["timestamp"] = time.time()
+SYSTEM_ADDRESS = "udp://<SITL_IP>:14540"
+SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udp://:14540")
 
 
-        #Debug Display
-        print("\n[TELEMETRY]")
-        print(f"Lat/Lon: {pos.latitude_deg:.6f}, {pos.longitude_deg:.6f}")
-        print(f"Heading (yaw_deg): {euler.yaw_deg:.2f}°")
-        print(f"Airspeed:          {fw.airspeed_m_s:.2f} m/s")
-        print(f"Battery:           {battery.remaining_percentage*100:.1f}%")
-        print(f"Status:            {status.text}")
+BASE_DIR = Path(__file__).resolve().parents[2]
+LOG_DIR = BASE_DIR / "logs" / "telemetry"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-#Writing Part
-FC_OUT_FILE = "/home/ngcp25/kraken_logs/fc_telem.json"
-FC_WRITE_HZ = 20.0
-FC_WRITE_PERIOD = 1.0 / FC_WRITE_HZ
+OUT_FILE = LOG_DIR / f"telemetry_{time.strftime('%Y%m%d_%H%M%S')}.jsonl"
 
-async def telemetry_writer():
+LOG_HZ = 5.0  #logging rate (Hz)
+M_TO_FT = 3.280839895
+MS_TO_FTS = 3.280839895
 
-    os.makedirs(os.path.dirname(FC_OUT_FILE), exist_ok=True) #checks if directory exists or creates it
+async def wait_connected(drone: System):
+    print(f"Connecting via {SYSTEM_ADDRESS} ...")
+    await drone.connect(system_address=SYSTEM_ADDRESS)
 
-    while True:
-        try:
-            with telemetry_lock:
-                snapshot = dict(shared_telemetry)  #copy current state
-
-            tmp_path = FC_OUT_FILE + ".tmp"
-            with open(tmp_path, "w") as f:
-                json.dump(snapshot, f)
-
-            os.replace(tmp_path, FC_OUT_FILE)  #atomic swap makes sure that a file is never half written or corrupted
-
-        except Exception as e:
-            print("[TELEM WRITER ERROR]", e)
-
-        await asyncio.sleep(FC_WRITE_PERIOD)
-
-
-async def main():
-    await UAV.connect(system_address="udp://:14540")
-
-    print("Waiting for FC connection...")
-    async for state in UAV.core.connection_state():
+    async for state in drone.core.connection_state():
         if state.is_connected:
-            print("Connected!")
-            break
+            print("Connected to PX4")
+            return
+        
+async def wait_position_ok(drone: System):
+    print("Waiting for global position + home position ...")
+    async for health in drone.telemetry.health():
+        if health.is_global_position_ok and health.is_home_position_ok:
+            print("Global position OK + Home OK")
+            return
+        
+async def main():
+    drone = System()
+    await wait_connected(drone)
+    await wait_position_ok(drone)
 
-    #Waits for valid GPS
-    print("Waiting for GPS lock...")
-    async for health in UAV.telemetry.health():
-        if health.is_global_position_ok:
-            print("GPS OK")
-            break
-        await asyncio.sleep(1)
+    latest = {
+        "position": None,   #lat/lon/alt
+        "vel_ned": None,    #north/east/down velocities
+        "att_euler": None,  #roll/pitch/yaw in degrees
+        "battery": None,    #remaining percent, voltage
+    }
 
-    #Starts getting telemetry 
-    asyncio.create_task(get_Telem())
-    
-    #Starts writing telemetry
-    asyncio.create_task(telemetry_writer())
+    async def pump_position():
+            async for msg in drone.telemetry.position():
+                latest["position"] = msg
+
+    async def pump_velocity():
+            async for msg in drone.telemetry.velocity_ned():
+                latest["vel_ned"] = msg
+
+    async def pump_attitude():
+            async for msg in drone.telemetry.attitude_euler():
+                latest["att_euler"] = msg   
+
+    async def pump_battery():
+            async for msg in drone.telemetry.battery():
+                latest["battery"] = msg
 
 
-    #Keeps alive
-    while True:
-        await asyncio.sleep(1)
+    tasks = [
+            asyncio.create_task(pump_position()),
+            asyncio.create_task(pump_velocity()),
+            asyncio.create_task(pump_attitude()),
+            asyncio.create_task(pump_battery()),
+        ]
+
+    print(f"Logging to {OUT_FILE}")
+    period_s = 1.0 / LOG_HZ
+
+    try:
+            with open(OUT_FILE, "a", encoding="utf-8") as f:
+                while True:
+                    loop_start = time.time()
+
+                    #Pi receipt timestamps (For timing with Kraken Logs)
+                    t_rx_epoch_ms = int(time.time() * 1000)
+                    t_rx_mono_ns = time.monotonic_ns()
+
+                    pos = latest["position"]
+                    vel = latest["vel_ned"]
+                    att = latest["att_euler"]
+                    bat = latest["battery"]
+
+                    
+                    
+                    speed_fts = None
+                    if vel is not None:
+                        vn = vel.north_m_s
+                        ve = vel.east_m_s
+                        speed_ms = (vn * vn + ve * ve) ** 0.5
+                        speed_fts = speed_ms * MS_TO_FTS
+
+                    #pitch/yaw/roll (deg)
+                    pitch = att.pitch_deg if att is not None else None
+                    yaw = att.yaw_deg if att is not None else None
+                    roll = att.roll_deg if att is not None else None
+
+                    #Altitude (ft): relative altitude
+                    altitude_ft = (pos.relative_altitude_m * M_TO_FT) if pos is not None else None
+
+                    #Battery (0-100)
+                    batteryLife = None
+                    if bat is not None and bat.remaining_percent is not None:
+                        batteryLife = bat.remaining_percent * 100.0
+
+                    #CurrentPosition(lat/lon)
+                    lat = pos.latitude_deg if pos is not None else None
+                    lon = pos.longitude_deg if pos is not None else None
+
+                
+                    record = {
+                        "speed": speed_fts,
+                        "pitch": pitch,
+                        "yaw": yaw,
+                        "roll": roll,
+                        "altitude": altitude_ft,
+                        "batteryLife": batteryLife,
+                        "lastUpdated": t_rx_epoch_ms,
+                        "currentPosition": [lat, lon],
+                    }
+
+                    f.write(json.dumps(record) + "\n")
+                    f.flush()
+
+                    #Fixed logging rate
+                    dt = time.time() - loop_start
+                    await asyncio.sleep(max(0.0, period_s - dt))
+
+    except KeyboardInterrupt:
+        print("Stopping telemetry logger")
+    finally:
+        for t in tasks:
+            t.cancel()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
-
