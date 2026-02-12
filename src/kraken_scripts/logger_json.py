@@ -14,7 +14,7 @@ LOG_DIR = BASE_DIR / "logs" / "kraken"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Output JSON log file (JSON Lines format)
-OUT_FILE = LOG_DIR / OUT_FILE = LOG_DIR / f"doa_{time.strftime('%Y%m%d_%H%M%S')}.jsonl"
+OUT_FILE = LOG_DIR / f"doa_{time.strftime('%Y%m%d_%H%M%S')}.jsonl"
 
 
 
