@@ -8,9 +8,8 @@ from pymavlink import mavutil
 
 LISTEN_URI = "udpin:0.0.0.0:14550"
 
-CMD_START_LOG = 31000 
-CMD_STOP_LOG  = 31001
-
+TXT_START_LOG = "NGCP:START_LOG"
+TXT_STOP_LOG = "NGCP:STOP_LOG"
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 STATE_DIR = BASE_DIR / "state"
@@ -45,14 +44,20 @@ def update_state(logging_enabled: bool, cmd_name: str, src_sys: int, src_comp: i
     state["last_sender_compid"] = src_comp
     save_state(state)
 
+def _decode_statustext(msg) -> str:
+    t = msg.text
+    if isinstance(t, (bytes, bytearray)):
+        return t.decode("utf-8", errors="ignore").strip("\x00").strip()
+    return str(t).strip("\x00").strip()
+
 def main():
     #Logs
     print()
     print(f"Listening for MAVLink on {LISTEN_URI} ...")
     print(f"State file: {STATE_FILE}")
     print()
-    print(f"Commands: START_LOG={CMD_START_LOG}, STOP_LOG={CMD_STOP_LOG}")
-    print("Waiting for COMMAND_LONG\n")
+    print(f"Commands: START_LOG={TXT_START_LOG}, STOP_LOG={TXT_STOP_LOG}")
+    print("Waiting for STATUSTEXT\n")
 
     #Makes sure file exists
     if not STATE_FILE.exists():
@@ -62,27 +67,27 @@ def main():
     m = mavutil.mavlink_connection(LISTEN_URI)
 
     while True:
-        msg = m.recv_match(type="COMMAND_LONG", blocking=True)
+        msg = m.recv_match(type="STATUSTEXT", blocking=True)
         if msg is None:
             continue
 
-        cmd = int(msg.command)
         src_sys = msg.get_srcSystem()
         src_comp = msg.get_srcComponent()
+        text = _decode_statustext(msg)
 
-        #Print Got command_long 
-        if cmd in (CMD_START_LOG, CMD_STOP_LOG):
-            print(f"COMMAND_LONG cmd={cmd}")
+        # Only print when it's one of our command texts (keeps output clean)
+        # if text in (TXT_START_LOG, TXT_STOP_LOG):
+        #     print(f"STATUSTEXT '{text}' from sys={src_sys} comp={src_comp}")
 
-        #Updates
-        if cmd == CMD_START_LOG:
+        print(f"STATUSTEXT '{text}' from sys={src_sys} comp={src_comp}")
+
+        if text == TXT_START_LOG:
             update_state(True, "START_LOG", src_sys, src_comp)
             print("START_LOG applied (state updated)\n")
 
-        elif cmd == CMD_STOP_LOG:
+        elif text == TXT_STOP_LOG:
             update_state(False, "STOP_LOG", src_sys, src_comp)
             print("STOP_LOG applied (state updated)\n")
-
 
 
 if __name__ == "__main__":
