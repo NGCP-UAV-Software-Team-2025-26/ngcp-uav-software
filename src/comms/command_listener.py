@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+import json
+import time
+from pathlib import Path
+
+from pymavlink import mavutil
+
+
+LISTEN_URI = "udpin:0.0.0.0:14550"
+
+CMD_START_LOG = 31000 
+CMD_STOP_LOG  = 31001
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+STATE_DIR = BASE_DIR / "state"
+STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+STATE_FILE = STATE_DIR / "mission_state.json"
+
+def load_state() -> dict:
+    if STATE_FILE.exists():
+        try:
+            return json.loads(STATE_FILE.read_text())
+        except Exception:
+            pass
+    return {
+        "logging_enabled": False,
+        "last_command": None,
+        "timestamp": None,
+        "last_sender_sysid": None,
+        "last_sender_compid": None,
+    }
+#Saves system state and writes it to the JSON
+def save_state(state: dict) -> None:
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
+#Modift and save
+def update_state(logging_enabled: bool, cmd_name: str, src_sys: int, src_comp: int) -> None:
+    state = load_state()
+    state["logging_enabled"] = logging_enabled
+    state["last_command"] = cmd_name
+    state["timestamp"] = time.time()
+    state["last_sender_sysid"] = src_sys
+    state["last_sender_compid"] = src_comp
+    save_state(state)
+
+def main():
+    #Logs
+    print()
+    print(f"Listening for MAVLink on {LISTEN_URI} ...")
+    print(f"State file: {STATE_FILE}")
+    print()
+    print(f"Commands: START_LOG={CMD_START_LOG}, STOP_LOG={CMD_STOP_LOG}")
+    print("Waiting for COMMAND_LONG\n")
+
+    #Makes sure file exists
+    if not STATE_FILE.exists():
+        save_state(load_state())
+        print(f"[STATE] Initialized {STATE_FILE}\n")
+
+    m = mavutil.mavlink_connection(LISTEN_URI)
+
+    while True:
+        msg = m.recv_match(type="COMMAND_LONG", blocking=True)
+        if msg is None:
+            continue
+
+        cmd = int(msg.command)
+        src_sys = msg.get_srcSystem()
+        src_comp = msg.get_srcComponent()
+
+        #Print Got command_long 
+        if cmd in (CMD_START_LOG, CMD_STOP_LOG):
+            print(f"COMMAND_LONG cmd={cmd}")
+
+        #Updates
+        if cmd == CMD_START_LOG:
+            update_state(True, "START_LOG", src_sys, src_comp)
+            print("START_LOG applied (state updated)\n")
+
+        elif cmd == CMD_STOP_LOG:
+            update_state(False, "STOP_LOG", src_sys, src_comp)
+            print("STOP_LOG applied (state updated)\n")
+
+
+
+if __name__ == "__main__":
+    main()
