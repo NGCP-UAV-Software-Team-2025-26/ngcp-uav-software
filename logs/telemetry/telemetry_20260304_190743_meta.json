@@ -1,0 +1,9 @@
+{
+  "script": "telemetry_logger.py",
+  "run_id": "20260304_190743",
+  "log_rate_hz": 5.0,
+  "state_poll_hz": 2.0,
+  "system_address": "udp://:14540",
+  "state_file": "/home/lensaki/Projects/ngcp-uav-software/state/mission_state.json",
+  "t_start_ms": 1772680063310
+}
