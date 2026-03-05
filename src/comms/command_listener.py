@@ -6,7 +6,7 @@ from pathlib import Path
 from pymavlink import mavutil
 
 
-LISTEN_URI = "udpin:0.0.0.0:14550"
+LISTEN_URI = "udpin:0.0.0.0:14601"
 
 CMD_START_LOG = 31000 
 CMD_STOP_LOG  = 31001
@@ -61,18 +61,22 @@ def main():
 
     m = mavutil.mavlink_connection(LISTEN_URI)
 
+    print("Waiting for heartbeat to confirm MAVLink link")
+    m.wait_heartbeat(timeout=30)
+    print(f"Heartbeat received. Listening for COMMAND_LONG messages...\n")
+
+    # Temporarily replace recv_match line with this:
+    
     while True:
-        msg = m.recv_match(type="COMMAND_LONG", blocking=True)
-        if msg is None:
-            continue
+        msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=5)
+
 
         cmd = int(msg.command)
         src_sys = msg.get_srcSystem()
         src_comp = msg.get_srcComponent()
 
         #Print Got command_long 
-        if cmd in (CMD_START_LOG, CMD_STOP_LOG):
-            print(f"COMMAND_LONG cmd={cmd}")
+        print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
 
         #Updates
         if cmd == CMD_START_LOG:
@@ -82,6 +86,9 @@ def main():
         elif cmd == CMD_STOP_LOG:
             update_state(False, "STOP_LOG", src_sys, src_comp)
             print("STOP_LOG applied (state updated)\n")
+
+        else:
+            print(f"Unrecognised command id={cmd}, ignoring.\n")
 
 
 
