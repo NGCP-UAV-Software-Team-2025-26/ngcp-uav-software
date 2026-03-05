@@ -70,7 +70,9 @@ def main():
     while True:
         msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=5)
 
-
+        if msg is None:
+            continue
+        
         cmd = int(msg.command)
         src_sys = msg.get_srcSystem()
         src_comp = msg.get_srcComponent()
