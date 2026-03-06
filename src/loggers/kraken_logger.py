@@ -20,20 +20,20 @@ START_STRUCT = time.localtime()
 RUN_ID   = time.strftime("%Y%m%d_%H%M%S", START_STRUCT)
 # Output JSON log file (JSON Lines format)
 OUT_FILE = LOG_DIR / f"doa_{RUN_ID}.jsonl"
-META_FILE = LOG_DIR / f"doa_{RUN_ID}_meta.json"
+#META_FILE = LOG_DIR / f"doa_{RUN_ID}_meta.json"
 
-def write_meta() -> None:
-    meta = {
-        "script": SCRIPT_NAME,
-        "run_id":       RUN_ID,
-        "poll_rate_hz": 1.0 / UPDATE_RATE,
-        "doa_endpoint": DOA_URL,
-        "log_file":     str(OUT_FILE),
-        "t_start_ms":   int(time.time() * 1000),
-    }
+# def write_meta() -> None:
+#     meta = {
+#         "script": SCRIPT_NAME,
+#         "run_id":       RUN_ID,
+#         "poll_rate_hz": 1.0 / UPDATE_RATE,
+#         "doa_endpoint": DOA_URL,
+#         "log_file":     str(OUT_FILE),
+#         "t_start_ms":   int(time.time() * 1000),
+#     }
 
-    META_FILE.write_text(json.dumps(meta, indent=2))
-    print(f"Meta written in {META_FILE}")
+#     META_FILE.write_text(json.dumps(meta, indent=2))
+#     print(f"Meta written in {META_FILE}")
 
 
 seq:            int   = 0
@@ -81,7 +81,7 @@ def log_once(f):
     
 
 def main():
-    write_meta()
+    # write_meta()
     print(f"Logging in {OUT_FILE}  (run_id={RUN_ID})")
 
     with open(OUT_FILE, "a", encoding="utf-8") as f:

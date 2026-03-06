@@ -1,8 +1,0 @@
-{
-  "script": "kraken_logger.py",
-  "run_id": "20260304_190541",
-  "poll_rate_hz": 10.0,
-  "doa_endpoint": "http://127.0.0.1:8081/DOA_value.html",
-  "log_file": "/home/lensaki/Projects/ngcp-uav-software/logs/kraken/doa_20260304_190541.jsonl",
-  "t_start_ms": 1772679941478
-}

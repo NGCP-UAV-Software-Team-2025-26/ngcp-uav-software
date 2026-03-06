@@ -51,7 +51,6 @@ qtcreator-*
 CATKIN_IGNORE
 
 
-state
 
 *.tlog
 *.tlog.raw

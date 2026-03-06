@@ -8,7 +8,7 @@ from mavsdk import System
 
 
 #SYSTEM_ADDRESS = "udp://<SITL_IP>:14540"
-SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udp://:14540")
+SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udp://:14603")
 
 
 LOG_HZ = 5.0  #logging rate (Hz)
@@ -30,21 +30,21 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 START_STRUCT = time.localtime()
 RUN_ID    = time.strftime("%Y%m%d_%H%M%S", START_STRUCT)
-META_FILE = LOG_DIR / f"telemetry_{RUN_ID}_meta.json"
+#META_FILE = LOG_DIR / f"telemetry_{RUN_ID}_meta.json"
 
 
-def write_meta() -> None:
-    meta = {
-        "script":          SCRIPT_NAME,
-        "run_id":          RUN_ID,
-        "log_rate_hz":     LOG_HZ,
-        "state_poll_hz":   STATE_POLL_HZ,
-        "system_address":  SYSTEM_ADDRESS,
-        "state_file":      str(STATE_FILE),
-        "t_start_ms":      int(time.time() * 1000),
-    }
-    META_FILE.write_text(json.dumps(meta, indent=2))
-    print(f"Meta written in {META_FILE}")
+# def write_meta() -> None:
+#     meta = {
+#         "script":          SCRIPT_NAME,++
+#         "run_id":          RUN_ID,
+#         "log_rate_hz":     LOG_HZ,
+#         "state_poll_hz":   STATE_POLL_HZ,
+#         "system_address":  SYSTEM_ADDRESS,
+#         "state_file":      str(STATE_FILE),
+#         "t_start_ms":      int(time.time() * 1000),
+#     }
+#     META_FILE.write_text(json.dumps(meta, indent=2))
+#     print(f"Meta written in {META_FILE}")
 
 
 def load_state() -> dict:
@@ -77,7 +77,7 @@ async def wait_position_ok(drone: System):
             return
         
 async def main():
-    write_meta()
+    # write_meta()
     drone = System()
     await wait_connected(drone)
     await wait_position_ok(drone)
