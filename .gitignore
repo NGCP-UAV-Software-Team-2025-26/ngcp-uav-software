@@ -50,5 +50,8 @@ qtcreator-*
 # Catkin custom files
 CATKIN_IGNORE
 
-logs/telemetry/
-state
+
+
+*.tlog
+*.tlog.raw
+*.parm

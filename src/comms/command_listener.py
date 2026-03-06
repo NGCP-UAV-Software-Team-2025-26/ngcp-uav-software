@@ -6,7 +6,7 @@ from pathlib import Path
 from pymavlink import mavutil
 
 
-LISTEN_URI = "udpin:0.0.0.0:14550"
+LISTEN_URI = "udpin:0.0.0.0:14601"
 
 TXT_START_LOG = "NGCP:START_LOG"
 TXT_STOP_LOG = "NGCP:STOP_LOG"
@@ -66,18 +66,25 @@ def main():
 
     m = mavutil.mavlink_connection(LISTEN_URI)
 
+    print("Waiting for heartbeat to confirm MAVLink link")
+    m.wait_heartbeat(timeout=30)
+    print(f"Heartbeat received. Listening for COMMAND_LONG messages...\n")
+
+    # Temporarily replace recv_match line with this:
+    
     while True:
-        msg = m.recv_match(type="STATUSTEXT", blocking=True)
+        msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=5)
+
         if msg is None:
             continue
-
+        
+        cmd = int(msg.command)
         src_sys = msg.get_srcSystem()
         src_comp = msg.get_srcComponent()
         text = _decode_statustext(msg)
 
-        # Only print when it's one of our command texts (keeps output clean)
-        # if text in (TXT_START_LOG, TXT_STOP_LOG):
-        #     print(f"STATUSTEXT '{text}' from sys={src_sys} comp={src_comp}")
+        #Print Got command_long 
+        print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
 
         print(f"STATUSTEXT '{text}' from sys={src_sys} comp={src_comp}")
 
@@ -88,6 +95,9 @@ def main():
         elif text == TXT_STOP_LOG:
             update_state(False, "STOP_LOG", src_sys, src_comp)
             print("STOP_LOG applied (state updated)\n")
+
+        else:
+            print(f"Unrecognised command id={cmd}, ignoring.\n")
 
 
 if __name__ == "__main__":
