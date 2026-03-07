@@ -8,7 +8,7 @@ from mavsdk import System
 
 
 #SYSTEM_ADDRESS = "udp://<SITL_IP>:14540"
-SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udp://:14603")
+SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udpin://0.0.0.0:14604")
 
 
 LOG_HZ = 5.0  #logging rate (Hz)
@@ -80,7 +80,7 @@ async def main():
     # write_meta()
     drone = System()
     await wait_connected(drone)
-    await wait_position_ok(drone)
+    #await wait_position_ok(drone)
 
     latest = {
         "position": None,   #lat/lon/alt

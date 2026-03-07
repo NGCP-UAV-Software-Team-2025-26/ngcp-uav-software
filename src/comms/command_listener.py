@@ -71,8 +71,14 @@ def main():
        print(f"[STATE] Initialized {STATE_FILE}\n")
 
 
-   m = mavutil.mavlink_connection(LISTEN_URI)
+   m = mavutil.mavlink_connection(LISTEN_URI, source_system=1, source_component=191)
 
+   print("Sending heartbeat to announce PI5")
+   m.mav.heartbeat_send(
+    mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+    mavutil.mavlink.MAV_AUTOPILOT_INVALID,
+    0, 0, 0
+   )
 
    print("Waiting for heartbeat to confirm MAVLink link")
    m.wait_heartbeat(timeout=30)
@@ -82,34 +88,36 @@ def main():
    # Temporarily replace recv_match line with this:
   
    while True:
-       msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=5)
+    
+    msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=5)
 
 
-       if msg is None:
-           continue
-      
-       cmd = int(msg.command)
-       src_sys = msg.get_srcSystem()
-       src_comp = msg.get_srcComponent()
+    if msg is None:
+        continue
+    
+    cmd = int(msg.command)
+    src_sys = msg.get_srcSystem()
+    src_comp = msg.get_srcComponent()
 
 
-       #Print Got command_long
-       print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
+    #Print Got command_long
+    print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
+    
+    m.mav.command_ack_send(msg.command, 0, target_system=msg.get_srcSystem(), target_component=msg.get_srcComponent())
+    
+    #Updates
+    if cmd == CMD_START_LOG:
+        update_state(True, "START_LOG", src_sys, src_comp)
+        print("START_LOG applied (state updated)\n")
 
 
-       #Updates
-       if cmd == CMD_START_LOG:
-           update_state(True, "START_LOG", src_sys, src_comp)
-           print("START_LOG applied (state updated)\n")
+    elif cmd == CMD_STOP_LOG:
+        update_state(False, "STOP_LOG", src_sys, src_comp)
+        print("STOP_LOG applied (state updated)\n")
 
 
-       elif cmd == CMD_STOP_LOG:
-           update_state(False, "STOP_LOG", src_sys, src_comp)
-           print("STOP_LOG applied (state updated)\n")
-
-
-       else:
-           print(f"Unrecognised command id={cmd}, ignoring.\n")
+    else:
+        print(f"Unrecognised command id={cmd}, ignoring.\n")
 
 
 
