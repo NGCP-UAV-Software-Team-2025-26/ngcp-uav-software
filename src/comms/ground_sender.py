@@ -4,9 +4,9 @@ import time
 
 
 
-#RFD_PORT = "/dev/ttyUSB0"   # adjust if needed 
-RFD_PORT = "udpin:0.0.0.0:14602" # for SITL
-# RFD_BAUD = 57600            # must matc                                                                                 h your radio/TELEM1
+RFD_PORT = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BG00HL2Y-if00-port0"
+#RFD_PORT = "udpin:0.0.0.0:14602" # for SITL
+RFD_BAUD = 57600            # must matc                                                                                 h your radio/TELEM1
 
 
 CMD_START_LOG = 31000                                   
@@ -15,8 +15,8 @@ CMD_STOP_LOG  = 31001
 ACK_TIMEOUT = 3
 
 #Target system/component to target PX4 directly (1,1)
-TARGET_SYSTEM    = 0
-TARGET_COMPONENT = 0
+TARGET_SYSTEM    = 1
+TARGET_COMPONENT = 191
 
 CMD_MAP = {
     "start_log": CMD_START_LOG,
@@ -57,26 +57,30 @@ def wait_for_ack(m, cmd_id: int, timeout: float = ACK_TIMEOUT) -> None:
         src_sys  = ack.get_srcSystem()
         src_comp = ack.get_srcComponent()
         print(f"[ACK] cmd={cmd_id} result={result_name} ({result_code}) "
-              f"from sys={src_sys} comp={src_comp}")
+            f"from sys={src_sys} comp={src_comp}")
         return
 
     print(f"[ACK] No ACK received for cmd={cmd_id} within {timeout}s "
-          f"(radio link issue, or listener does not send ACKs)")
+        f"(radio link issue, or listener does not send ACKs)")
     
 def main():
     # print(f"Connecting to RFD on {RFD_PORT} @ {RFD_BAUD}...")
     # m = mavutil.mavlink_connection(RFD_PORT, baud=RFD_BAUD)
 
     print(f"Connecting to RFD on {RFD_PORT}")
-    m = mavutil.mavlink_connection(RFD_PORT)
+    m = mavutil.mavlink_connection(RFD_PORT, baud=RFD_BAUD)
 
-    print("Waiting for heartbeat (timeout 10s)")
-    hb = m.wait_heartbeat(timeout=10)
+    print("Waiting for heartbeat (timeout 30s)")
+    hb = m.wait_heartbeat(timeout=30)
     if not hb:
-        print("ERROR: No heartbeat received. Check radio link and baud rate.")
+        print("ERROR: No heartbeat received. mavlink-router and upstream serial link.")
         return
 
     print(f"Heartbeat received from system={m.target_system} component={m.target_component}")
+
+    # NEW: Update global targets based on the heartbeat
+    global TARGET_SYSTEM
+    TARGET_SYSTEM = m.target_system
     print("Ground console ready.\n")
     print()
     print("Available commands:", ", ".join(CMD_MAP.keys()))
