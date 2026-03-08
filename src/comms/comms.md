@@ -47,6 +47,9 @@ mavlink-routerd \
 14603 → spare port\
 14604 → telemetry
 
+ttyAMA0: → The UART Port
+57600 → The Baud Rate
+
 ### command_listener also on PI5
 #### Setting up
 A virtual enviroment is needed for pymavlink
