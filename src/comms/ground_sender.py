@@ -5,7 +5,7 @@ import time
 
 
 RFD_PORT = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BG00HL2Y-if00-port0"
-#RFD_PORT = "udpin:0.0.0.0:14602" # for SITL
+#RFD_PORT = "udpout:127.0.0.1:14601"
 RFD_BAUD = 57600            # must matc                                                                                 h your radio/TELEM1
 
 

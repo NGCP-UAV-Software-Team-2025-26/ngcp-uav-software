@@ -5,55 +5,13 @@ from pathlib import Path
 
 
 from pymavlink import mavutil
-
-
-
+from state.state_utils import update_state, STATE_FILE
 
 LISTEN_URI = "udpin:0.0.0.0:14601"
 
 
 CMD_START_LOG = 31000
 CMD_STOP_LOG  = 31001
-
-
-
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-STATE_DIR = BASE_DIR / "state"
-STATE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-STATE_FILE = STATE_DIR / "mission_state.json"
-
-
-def load_state() -> dict:
-   if STATE_FILE.exists():
-       try:
-           return json.loads(STATE_FILE.read_text())
-       except Exception:
-           pass
-   return {
-       "logging_enabled": False,
-       "last_command": None,
-       "timestamp": None,
-       "last_sender_sysid": None,
-       "last_sender_compid": None,
-   }
-#Saves system state and writes it to the JSON
-def save_state(state: dict) -> None:
-   STATE_FILE.write_text(json.dumps(state, indent=2))
-
-
-#Modift and save
-def update_state(logging_enabled: bool, cmd_name: str, src_sys: int, src_comp: int) -> None:
-   state = load_state()
-   state["logging_enabled"] = logging_enabled
-   state["last_command"] = cmd_name
-   state["timestamp"] = time.time()
-   state["last_sender_sysid"] = src_sys
-   state["last_sender_compid"] = src_comp
-   save_state(state)
-
 
 def main():
    #Logs
@@ -67,8 +25,8 @@ def main():
 
    #Makes sure file exists
    if not STATE_FILE.exists():
-       save_state(load_state())
-       print(f"[STATE] Initialized {STATE_FILE}\n")
+    update_state("logging_enabled", False)
+    print(f"[STATE] Initialized {STATE_FILE}\n")
 
 
    m = mavutil.mavlink_connection(LISTEN_URI, source_system=1, source_component=191)
@@ -107,22 +65,25 @@ def main():
     
     #Updates
     if cmd == CMD_START_LOG:
-        update_state(True, "START_LOG", src_sys, src_comp)
+        update_state("logging_enabled", True)
+        update_state("last_command", "START_LOG")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
         print("START_LOG applied (state updated)\n")
 
 
     elif cmd == CMD_STOP_LOG:
-        update_state(False, "STOP_LOG", src_sys, src_comp)
+        update_state("logging_enabled", False)
+        update_state("last_command", "STOP_LOG")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
         print("STOP_LOG applied (state updated)\n")
 
 
     else:
         print(f"Unrecognised command id={cmd}, ignoring.\n")
-
-
-
-
-
 
 if __name__ == "__main__":
    main()

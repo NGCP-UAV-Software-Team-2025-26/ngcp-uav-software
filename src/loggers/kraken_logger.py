@@ -4,11 +4,13 @@ import json
 import requests
 from pathlib import Path
 
+from state.state_utils import update_state #For the mission_state.json
+
 # Kraken DOA endpoint (LOCALHOST on Pi)
 DOA_URL = "http://127.0.0.1:8081/DOA_value.html"
 # Polling rate (seconds)
 UPDATE_RATE = 0.1  # 10 Hz or match Kraken update rate
-SCRIPT_NAME = "kraken_logger.py"
+#SCRIPT_NAME = "kraken_logger.py"
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -85,11 +87,14 @@ def main():
     print(f"Logging in {OUT_FILE}  (run_id={RUN_ID})")
 
     with open(OUT_FILE, "a", encoding="utf-8") as f:
+        update_state("kraken_log", str(OUT_FILE))
         while True:
             loop_start = time.time()
             log_once(f)
             elapsed = time.time() - loop_start
             time.sleep(max(0.0, UPDATE_RATE - elapsed))
+    
+
 
 
 if __name__ == "__main__":

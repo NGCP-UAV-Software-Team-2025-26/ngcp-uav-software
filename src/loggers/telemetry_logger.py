@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import os
 
+from state.state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
 from mavsdk import System
 
 
@@ -14,19 +15,11 @@ SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udpin://0.0.0.0:14604")
 LOG_HZ = 5.0  #logging rate (Hz)
 STATE_POLL_HZ = 2.0 #How often to check state file
 
-SCRIPT_NAME = "telemetry_logger.py"
+#SCRIPT_NAME = "telemetry_logger.py"
 
 #Unit Conversions
 M_TO_FT = 3.280839895
 MS_TO_FTS = 3.280839895
-
-#File Paths
-BASE_DIR = Path(__file__).resolve().parents[2]
-LOG_DIR = BASE_DIR / "logs" / "telemetry"
-STATE_FILE = BASE_DIR / "state" / "mission_state.json" #Where telem logger checks to see if it should start
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-
 
 START_STRUCT = time.localtime()
 RUN_ID    = time.strftime("%Y%m%d_%H%M%S", START_STRUCT)
@@ -46,15 +39,9 @@ RUN_ID    = time.strftime("%Y%m%d_%H%M%S", START_STRUCT)
 #     META_FILE.write_text(json.dumps(meta, indent=2))
 #     print(f"Meta written in {META_FILE}")
 
-
-def load_state() -> dict:
-    
-    try:
-        if STATE_FILE.exists():
-            return json.loads(STATE_FILE.read_text())
-    except Exception:
-        pass
-    return {"logging_enabled": False}
+BASE_DIR = Path(__file__).resolve().parents[2]
+LOG_DIR  = BASE_DIR / "logs" / "telemetry"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 #Connection Checks
 
@@ -144,6 +131,7 @@ async def main():
                     session_ts = time.strftime("%Y%m%d_%H%M%S")
                     out_file = LOG_DIR / f"telemetry_{RUN_ID}_{session_ts}.jsonl"
                     f = open(out_file, "a", encoding="utf-8")
+                    update_state("telemetry_log", str(out_file))
                     logging_enabled = True
                     print(f"START_LOG: logging to {out_file}")
 

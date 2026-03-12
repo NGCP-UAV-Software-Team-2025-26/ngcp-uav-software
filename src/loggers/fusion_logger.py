@@ -4,21 +4,20 @@ import json
 import time
 from pathlib import Path
 
-DEFAULT_MAX_TIME_DIFF_MS     = 250
+from state.state_utils import load_state, update_state
+
+DEFAULT_MAX_TIME_DIFF_MS     = 250 #Difference in telemetry t_rx_ms and kraken t_rx_ms (Can't be over 250 cuz that means its too far apart)
 DEFAULT_MIN_CONFIDENCE       = 0.5
 DEFAULT_MAX_ROLL_DEG         = 30.0
 DEFAULT_MIN_GROUND_SPEED_FT_S = 3.0
 
 SCRIPT_NAME = "fusion_logger.py"
 
-
-
 BASE_DIR   = Path(__file__).resolve().parents[2]
-KRAKEN_DIR = BASE_DIR / "logs" / "kraken"
-TEL_DIR    = BASE_DIR / "logs" / "telemetry"
+
+
 FUSION_DIR = BASE_DIR / "logs" / "fusion"
 FUSION_DIR.mkdir(parents=True, exist_ok=True)
-
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -33,28 +32,6 @@ def load_jsonl(path: Path) -> list[dict]:
             except json.JSONDecodeError as e:
                 print(f"{path.name}:{lineno} — skipping bad JSON: {e}")
     return records
-
-
-def find_kraken_file(run_id: str) -> Path:
-    matches = sorted(KRAKEN_DIR.glob(f"doa_{run_id}*.jsonl"))
-    if not matches:
-        raise FileNotFoundError(
-            f"No Kraken log found for run_id={run_id} in {KRAKEN_DIR}"
-        )
-    if len(matches) > 1:
-        print(f"Multiple Kraken files found, using: {matches[0].name}")
-    return matches[0]
-
-
-def find_telemetry_files(run_id: str) -> list[Path]:
-    matches = sorted(TEL_DIR.glob(f"telemetry_{run_id}*.jsonl"))
-    if not matches:
-        raise FileNotFoundError(
-            f"No telemetry log found for run_id={run_id} in {TEL_DIR}"
-        )
-    return matches
-
-
 
 def build_timestamp_index(records: list[dict]) -> list[int]:
     return [r["t_rx_ms"] for r in records]
@@ -175,28 +152,27 @@ def fuse(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fused Kraken DOA + telemetry logs.")
-    parser.add_argument("--run_id",                required=True,
-                        help="Shared run_id string, e.g. 20260304_153000")
     parser.add_argument("--max_time_diff_ms",      type=int,   default=DEFAULT_MAX_TIME_DIFF_MS)
     parser.add_argument("--min_confidence",        type=float, default=DEFAULT_MIN_CONFIDENCE)
     parser.add_argument("--max_roll_deg",          type=float, default=DEFAULT_MAX_ROLL_DEG)
     parser.add_argument("--min_ground_speed_ft_s", type=float, default=DEFAULT_MIN_GROUND_SPEED_FT_S)
     args = parser.parse_args()
-
-    run_id = args.run_id
     t_fusion_start_ms = int(time.time() * 1000)
 
-   
+    state        = load_state()
+    if not state.get("kraken_log"):
+        print("[fusion_logger] ERROR: kraken_log not found in state file. Run kraken_logger first.")
+        return
+    if not state.get("telemetry_log"):
+        print("[fusion_logger] ERROR: telemetry_log not found in state file. Run telemetry_logger first.")
+        return
+    kraken_file  = Path(state["kraken_log"])
+    tel_files    = [Path(state["telemetry_log"])]
+    run_id       = kraken_file.stem.replace("doa_", "")
+
     print(f"\n[fusion_logger] run_id = {run_id}")
-
-    kraken_file = find_kraken_file(run_id)
     print(f"  Kraken  : {kraken_file.name}")
-
-    tel_files = find_telemetry_files(run_id)
-    print(f"  Telemetry ({len(tel_files)} file(s)):")
-    for tf in tel_files:
-        print(f"    {tf.name}")
-
+    print(f"  Telemetry : {tel_files[0].name}")
     
     print("\n[fusion_logger] Loading records ...")
     kraken_records = load_jsonl(kraken_file)
@@ -241,6 +217,7 @@ def main() -> None:
         for record in fused:
             f.write(json.dumps(record) + "\n")
     print(f"\n[fusion_logger] Wrote {len(fused)} records → {out_file}")
+    update_state("fusion_log", str(out_file))
 
     #Meta to keep track of what parameters for fusion
     meta = {
