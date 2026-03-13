@@ -1,0 +1,10 @@
+{
+  "logging_enabled": true,
+  "last_command": "START_LOG",
+  "timestamp": 1772826876.592353,
+  "last_sender_sysid": 255,
+  "last_sender_compid": 0,
+  "kraken_log": "/home/lensaki/Projects/ngcp-uav-software/logs/kraken/doa_20260313_112711.jsonl",
+  "telemetry_log": "/home/lensaki/Projects/ngcp-uav-software/logs/telemetry/telemetry_20260313_112725.jsonl",
+  "fusion_log": "/home/lensaki/Projects/ngcp-uav-software/logs/fusion/fusion_20260313_112711.jsonl"
+}
