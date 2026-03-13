@@ -13,7 +13,7 @@ LOG_DIR    = BASE_DIR / "logs" / "telemetry"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 RUN_ID   = time.strftime("%Y%m%d_%H%M%S")
-filepath = LOG_DIR / f"simtelemetry_{RUN_ID}.jsonl"
+filepath = LOG_DIR / f"telemetry_{RUN_ID}.jsonl"
 
 update_state("telemetry_log", str(filepath))
 RATE_HZ = 10
