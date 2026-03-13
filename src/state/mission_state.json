@@ -1,10 +1,10 @@
 {
   "logging_enabled": false,
   "last_command": "STOP_LOG",
-  "timestamp": 1773436129.695003,
+  "timestamp": 1773442842.627419,
   "last_sender_sysid": 255,
   "last_sender_compid": 0,
-  "kraken_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/kraken/doa_20260313_140519.jsonl",
+  "kraken_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/kraken/doa_20260313_154333.jsonl",
   "telemetry_log": null,
   "fusion_log": null
 }
