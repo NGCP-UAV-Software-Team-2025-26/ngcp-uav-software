@@ -38,7 +38,7 @@ OUT_FILE = LOG_DIR / f"doa_{RUN_ID}.jsonl"
 #     print(f"Meta written in {META_FILE}")
 
 
-seq:            int   = 0
+seq: int   = 0
 last_kraken_counter: float = -1 
 
 def log_once(f):
