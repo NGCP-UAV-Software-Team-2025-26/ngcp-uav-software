@@ -9,7 +9,7 @@ from mavsdk import System
 
 
 #SYSTEM_ADDRESS = "udp://<SITL_IP>:14540"
-SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udpin://0.0.0.0:14604")
+SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udpin://0.0.0.0:14602")
 
 
 LOG_HZ = 5.0  #logging rate (Hz)
