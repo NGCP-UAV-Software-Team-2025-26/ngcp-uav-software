@@ -50,8 +50,15 @@ def log_once(f):
     try:
         t_rx_ms = int(time.time() * 1000) #Pi receipt time
 
-        r = requests.get(DOA_URL, timeout=1)
+        try:
+            r = requests.get(DOA_URL, timeout=1)
+        except requests.exceptions.RequestException:
+            return  #endpoint not ready or no signal yet
+
         line = r.text.strip()
+
+        if not line:
+            return  # empty response
         fields = line.split(',')
         
         kraken_counter = float(fields[0])
@@ -83,8 +90,12 @@ def log_once(f):
             #"compass_heading": float(fields[12]),
         }
 
-        f.write(json.dumps(entry) + "\n")
+        line_out = json.dumps(entry)
+
+        f.write(line_out + "\n")
         f.flush()
+
+        print(line_out)
 
         last_kraken_counter = kraken_counter
         seq += 1
