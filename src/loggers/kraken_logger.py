@@ -56,6 +56,14 @@ def log_once(f):
         
         kraken_counter = float(fields[0])
 
+        #forces unfinshed values to be null
+        def safe_float(val):
+            try:
+                return float(val.strip())
+            except:
+                return None
+
+
         if kraken_counter == last_kraken_counter:
             return
         
@@ -66,12 +74,12 @@ def log_once(f):
             "seq": seq,
             "kraken_counter": kraken_counter,
 
-            "doa_deg": float(fields[1]),               # unit-circle DoA (0°=East CCW)
-            "confidence_0_1": float(fields[2]),
+            "doa_deg": safe_float(fields[1]),               # unit-circle DoA (0°=East CCW)
+            "confidence_0_1": safe_float(fields[2]),
 
-            "lat_deg": float(fields[9]),
-            "lon_deg": float(fields[10]),
-            "gps_heading_deg": float(fields[11]),
+            "lat_deg": safe_float(fields[9]),
+            "lon_deg": safe_float(fields[10]),
+            "gps_heading_deg": safe_float(fields[11]),
             #"compass_heading": float(fields[12]),
         }
 
@@ -83,6 +91,7 @@ def log_once(f):
 
     except Exception as e:
         print("Error:", e)
+        print("LINE:", repr(line))
     
 
 def main():
