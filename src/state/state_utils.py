@@ -12,6 +12,25 @@ DEFAULTS = {
     "kraken_log": None,
     "telemetry_log": None,
     "fusion_log": None,
+    "autonomy_enabled": False,
+    "pending_action": None,
+    "rtl_requested": False,
+
+    "target_fix": {
+        "lat": None,
+        "lon": None,
+        "alt": None,
+        "confidence": None,
+        "fix_id": None,
+        "timestamp": None,
+    },
+
+    "mission_status": {
+        "active_target_fix_id": None,
+        "last_processed_fix_id": None,
+        "mission_count": 0,
+        "current_mode": None,
+    }
 }
 
 def load_state() -> dict:
