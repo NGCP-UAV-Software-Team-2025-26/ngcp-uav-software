@@ -1,0 +1,39 @@
+import asyncio
+from pathlib import Path
+import os
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from state.state_utils import load_state, update_state, STATE_FILE 
+
+STATE_POLL_HZ = 2.0 #How often to check state file
+
+async def main():
+
+    state_period_s = 1.0 / STATE_POLL_HZ
+
+    print(f"State file: {STATE_FILE}")
+    print()
+    print("System Controller ready... (shutdown or reboot)")
+    print()
+
+
+    while True:
+        state = load_state()
+        action = state.get("pending_action")
+
+        if action == "reboot":
+            update_state({"pending_action": None, "last_command": "reboot"})
+            print("Rebooting...")
+            os.system("sudo reboot")
+
+        elif action == "shutdown":
+            update_state({"pending_action": None, "last_command": "shutdown"})
+            print("Shutting Down...")
+            os.system("sudo shutdown now")
+
+        await asyncio.sleep(state_period_s)
+
+if __name__ == "__main__":
+    asyncio.run(main())
