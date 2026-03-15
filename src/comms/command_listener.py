@@ -17,6 +17,12 @@ LISTEN_URI = "udpin:0.0.0.0:14601"
 CMD_START_LOG = 31000
 CMD_STOP_LOG  = 31001
 
+CMD_START_AUTONOMY = 31002
+CMD_STOP_AUTONOMY = 31003
+
+CMD_REBOOT = 31004
+CMD_SHUTDOWN = 31005
+
 def main():
    #Logs
    print()
@@ -45,9 +51,6 @@ def main():
    print("Waiting for heartbeat to confirm MAVLink link")
    m.wait_heartbeat(timeout=30)
    print(f"Heartbeat received. Listening for COMMAND_LONG messages...\n")
-
-
-   # Temporarily replace recv_match line with this:
   
    while True:
     
@@ -84,6 +87,37 @@ def main():
         update_state("last_sender_compid", src_comp)
         update_state("timestamp", time.time())
         print("STOP_LOG applied (state updated)\n")
+
+    elif cmd == CMD_START_AUTONOMY:
+        update_state("autonomy_enabled", True)
+        update_state("last_command", "START_AUTONOMY")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
+        print("START_AUTONOMY applied (state updated)\n")
+
+    elif cmd == CMD_STOP_AUTONOMY:
+        update_state("autonomy_enabled", False)
+        update_state("last_command", "STOP_AUTONOMY")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
+        print("STOP_AUTONOMY state updated)\n")
+
+    elif cmd == CMD_REBOOT:
+        update_state("pending_action", "reboot")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
+        print("Reboot state applied)\n")
+
+    elif cmd == CMD_SHUTDOWN:
+        update_state("pending_action", "shutdown")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
+        print("Shutdown state applied)\n")
+    
 
 
     else:

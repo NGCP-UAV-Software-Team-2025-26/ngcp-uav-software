@@ -12,6 +12,13 @@ RFD_BAUD = 57600            # must matc                                         
 CMD_START_LOG = 31000                                   
 CMD_STOP_LOG  = 31001
 
+CMD_START_AUTONOMY = 31002
+CMD_STOP_AUTONOMY = 31003
+
+CMD_REBOOT = 31004
+CMD_SHUTDOWN = 31005
+
+
 ACK_TIMEOUT = 3
 
 #Target system/component to target PX4 directly (1,1)
@@ -21,6 +28,10 @@ TARGET_COMPONENT = 191
 CMD_MAP = {
     "start_log": CMD_START_LOG,
     "stop_log":  CMD_STOP_LOG,
+    "auto_start": CMD_START_AUTONOMY,
+    "auto_stop": CMD_STOP_AUTONOMY,
+    "reboot": CMD_REBOOT,
+    "shutdown": CMD_SHUTDOWN,
 }
 
 MAV_RESULT = {
@@ -72,11 +83,20 @@ def main():
 
     print("Waiting for heartbeat (timeout 30s)")
     hb = m.wait_heartbeat(timeout=30)
+
     if not hb:
         print("ERROR: No heartbeat received. mavlink-router and upstream serial link.")
         return
 
-    print(f"Heartbeat received from system={m.target_system} component={m.target_component}")
+    print(f"MAVLink Heartbeat received from system={m.target_system} component={m.target_component}")
+
+    print("Waiting for telemetry...")
+    msg = m.recv_match(type='SYS_STATUS', blocking=True, timeout=5)
+
+    if msg is None:
+        print("WARNING: MAVLink Heartbeat received but no telemetry stream detected")
+    else:
+        print("Telemetry stream confirmed")
 
     # NEW: Update global targets based on the heartbeat
     global TARGET_SYSTEM
