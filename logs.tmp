@@ -1,0 +1,88 @@
+{
+  "fileType": "Plan",
+  "geoFence": {
+    "circles": [],
+    "polygons": [],
+    "version": 2
+  },
+  "groundStation": "SAR-AutoHoming",
+  "mission": {
+    "cruiseSpeed": 10.63,
+    "firmwareType": 12,
+    "globalPlanAltitudeMode": 1,
+    "hoverSpeed": 5,
+    "items": [
+      {
+        "autoContinue": true,
+        "command": 16,
+        "doJumpId": 1,
+        "frame": 3,
+        "params": [
+          0,
+          0,
+          0,
+          NaN,
+          33.995627709252595,
+          -118.00861485584264,
+          0
+        ],
+        "type": "SimpleItem"
+      },
+      {
+        "autoContinue": true,
+        "command": 16,
+        "doJumpId": 2,
+        "frame": 3,
+        "params": [
+          0,
+          24.702262189093606,
+          0,
+          NaN,
+          34.00081308928802,
+          -117.9975424627496,
+          60.96
+        ],
+        "type": "SimpleItem"
+      },
+      {
+        "autoContinue": true,
+        "command": 17,
+        "doJumpId": 3,
+        "frame": 3,
+        "params": [
+          0,
+          0,
+          91.44,
+          NaN,
+          34.000977,
+          -117.9971925,
+          60.96
+        ],
+        "type": "SimpleItem"
+      }
+    ],
+    "plannedHomePosition": [
+      33.995627709252595,
+      -118.00861485584264,
+      0
+    ],
+    "vehicleType": 1,
+    "version": 2
+  },
+  "rallyPoints": {
+    "points": [],
+    "version": 2
+  },
+  "version": 1,
+  "_meta": {
+    "generated_utc": "2026-03-16T18:20:17Z",
+    "target_lat": 34.000977,
+    "target_lon": -117.9971925,
+    "dist_to_target_m": 1209.4,
+    "hdg_to_target_deg": 60.5,
+    "approach_alt_ft": 200.0,
+    "loiter_radius_ft": 300.0,
+    "max_bank_deg": 25.0,
+    "turn_radius_m": 24.7
+  }
+}

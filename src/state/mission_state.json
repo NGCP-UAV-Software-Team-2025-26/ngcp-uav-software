@@ -4,7 +4,24 @@
   "timestamp": 1773442842.627419,
   "last_sender_sysid": 255,
   "last_sender_compid": 0,
-  "kraken_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/kraken/doa_20260313_154333.jsonl",
-  "telemetry_log": null,
-  "fusion_log": null
+  "kraken_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\kraken\\doa_20260316_120812.jsonl",
+  "telemetry_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\telemetry\\telemetry_20260316_120813.jsonl",
+  "fusion_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\fusion\\fusion_20260316_120812.jsonl",
+  "autonomy_enabled": false,
+  "pending_action": null,
+  "rtl_requested": false,
+  "target_fix": {
+    "lat": null,
+    "lon": null,
+    "alt": null,
+    "confidence": null,
+    "fix_id": null,
+    "timestamp": null
+  },
+  "mission_status": {
+    "active_target_fix_id": null,
+    "last_processed_fix_id": null,
+    "mission_count": 0,
+    "current_mode": null
+  }
 }
