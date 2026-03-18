@@ -2,11 +2,14 @@
 from pymavlink import mavutil
 import time
 
+import os
 
-
-RFD_PORT = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BG00HL2Y-if00-port0"
-#RFD_PORT = "udpout:127.0.0.1:14601"
-RFD_BAUD = 57600            # must matc                                                                                 h your radio/TELEM1
+# By default, we connect to the local MAVProxy router so that QGroundControl 
+# can simultaneously access the telemetry stream on port 14550.
+# If you want to bypass MAVProxy and connect directly to the radio, 
+# set the RFD_PORT environment variable to the serial path (e.g. /dev/ttyUSB0).
+RFD_PORT = os.environ.get("RFD_PORT", "udpin:127.0.0.1:14601")
+RFD_BAUD = int(os.environ.get("RFD_BAUD", 57600))
 
 
 CMD_START_LOG = 31000                                   
