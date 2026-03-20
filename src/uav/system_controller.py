@@ -24,12 +24,14 @@ async def main():
         action = state.get("pending_action")
 
         if action == "reboot":
-            update_state({"pending_action": None, "last_command": "reboot"})
+            update_state("pending_action", None)
+            update_state("last_command", "reboot")
             print("Rebooting...")
             os.system("sudo reboot")
-
+            
         elif action == "shutdown":
-            update_state({"pending_action": None, "last_command": "shutdown"})
+            update_state("pending_action", None)
+            update_state("last_command", "shutdown")
             print("Shutting Down...")
             os.system("sudo shutdown now")
 
