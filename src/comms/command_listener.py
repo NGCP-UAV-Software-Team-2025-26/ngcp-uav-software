@@ -60,15 +60,28 @@ def main():
     if msg is None:
         continue
     
-    cmd = int(msg.command)
+    
     src_sys = msg.get_srcSystem()
     src_comp = msg.get_srcComponent()
 
 
     #Print Got command_long
-    print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
+    # cmd = int(msg.command)
+    # print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
+
+    cmd = int(msg.command)
+
+    if cmd not in (
+        CMD_START_LOG,
+        CMD_STOP_LOG,
+        CMD_START_AUTONOMY,
+        CMD_STOP_AUTONOMY,
+        CMD_REBOOT,
+        CMD_SHUTDOWN,
+    ):
+        continue  # ignore everything else silently
     
-    m.mav.command_ack_send(msg.command, 0, target_system=msg.get_srcSystem(), target_component=msg.get_srcComponent())
+   
     
     #Updates
     if cmd == CMD_START_LOG:
@@ -102,26 +115,28 @@ def main():
         update_state("last_sender_sysid", src_sys)
         update_state("last_sender_compid", src_comp)
         update_state("timestamp", time.time())
-        print("STOP_AUTONOMY state updated)\n")
+        print("STOP_AUTONOMY (state updated)\n")
 
     elif cmd == CMD_REBOOT:
         update_state("pending_action", "reboot")
         update_state("last_sender_sysid", src_sys)
         update_state("last_sender_compid", src_comp)
         update_state("timestamp", time.time())
-        print("Reboot state applied)\n")
+        print("Reboot (state applied)\n")
 
     elif cmd == CMD_SHUTDOWN:
         update_state("pending_action", "shutdown")
         update_state("last_sender_sysid", src_sys)
         update_state("last_sender_compid", src_comp)
         update_state("timestamp", time.time())
-        print("Shutdown state applied)\n")
+        print("Shutdown (state applied)\n")
     
 
 
     else:
         print(f"Unrecognised command id={cmd}, ignoring.\n")
+
+    m.mav.command_ack_send(msg.command, 0, target_system=msg.get_srcSystem(), target_component=msg.get_srcComponent())
 
 if __name__ == "__main__":
    main()
