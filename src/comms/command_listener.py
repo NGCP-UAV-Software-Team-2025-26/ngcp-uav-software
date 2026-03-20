@@ -23,6 +23,16 @@ CMD_STOP_AUTONOMY = 31003
 CMD_REBOOT = 31004
 CMD_SHUTDOWN = 31005
 
+VALID_COMMANDS = (
+    CMD_START_LOG,
+    CMD_STOP_LOG,
+    CMD_START_AUTONOMY,
+    CMD_STOP_AUTONOMY,
+    CMD_REBOOT,
+    CMD_SHUTDOWN,
+)
+
+
 def main():
    #Logs
    print()
@@ -67,22 +77,16 @@ def main():
 
     #Print Got command_long
     # cmd = int(msg.command)
-    # print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
+    # 
 
     cmd = int(msg.command)
 
-    if cmd not in (
-        CMD_START_LOG,
-        CMD_STOP_LOG,
-        CMD_START_AUTONOMY,
-        CMD_STOP_AUTONOMY,
-        CMD_REBOOT,
-        CMD_SHUTDOWN,
-    ):
-        continue  # ignore everything else silently
-    
+    if cmd not in VALID_COMMANDS:
+        continue
+        
    
-    
+    print(f"COMMAND_LONG cmd={cmd} from sys={src_sys} comp={src_comp}")
+
     #Updates
     if cmd == CMD_START_LOG:
         update_state("logging_enabled", True)
