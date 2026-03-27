@@ -55,3 +55,5 @@ CATKIN_IGNORE
 *.tlog
 *.tlog.raw
 *.parm
+
+src/comms/debug.py
