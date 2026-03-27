@@ -1,5 +1,5 @@
 """
-Direction-of-Arrival (DOA) triangulation processor for Kraken + telemetry data.
+DOA triangulation processor for Kraken + telemetry data
 
 Core idea
 ---------
@@ -38,7 +38,7 @@ STATE_POLL_HZ = 2.0
 #  BASE (INITIAL) THRESHOLDS  –  live values start here and adapt from here
 ###########################################################################
 CONFIDENCE_THRESHOLD_BASE    = 0.50   # float [0,1]  min confidence_0_1 to enter memory
-CLUSTER_COUNT_THRESHOLD_BASE = 5      # int          min intersections in vicinity to trigger
+CLUSTER_COUNT_THRESHOLD_BASE = 10      # int          min intersections in vicinity to trigger
 VICINITY_THRESHOLD_M_BASE    = 500.0  # float (m)    neighbourhood radius for intersection cluster
 
 #  ADAPTIVE THRESHOLD CONTROLS
