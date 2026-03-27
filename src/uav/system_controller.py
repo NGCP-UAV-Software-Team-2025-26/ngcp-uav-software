@@ -27,12 +27,14 @@ async def main():
             update_state("pending_action", None)
             update_state("last_command", "reboot")
             print("Rebooting...")
+            await asyncio.sleep(0.5)
             os.system("sudo reboot")
             
         elif action == "shutdown":
             update_state("pending_action", None)
             update_state("last_command", "shutdown")
             print("Shutting Down...")
+            await asyncio.sleep(0.5)
             os.system("sudo shutdown now")
 
         await asyncio.sleep(state_period_s)
