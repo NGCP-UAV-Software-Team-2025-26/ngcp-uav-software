@@ -289,6 +289,7 @@ async def run():
     
 
     autonomy_active = False
+    update_state("autonomy_active", autonomy_active)
     # last_upload_time = 0.0
     # last_processed_fix_id = None
     last_telemetry_time = time.time()
@@ -370,10 +371,12 @@ async def run():
 
         log.info("should_autonomy=%s", should_autonomy)
         log.info("autonomy_active=%s", autonomy_active)
+        mode_str = telemetry.get("flight_mode") or "UNKNOWN"
+
         log.info("armed=%s alt=%.1f mode=%s",
                 telemetry.get("armed"),
                 telemetry.get("rel_alt_m", -1),
-                telemetry.get("flight_mode"))
+                mode_str)
         
         
 
@@ -384,6 +387,7 @@ async def run():
                 await drone.action.return_to_launch()
                 update_state("rtl_requested", False)
                 autonomy_active = False
+                update_state("autonomy_active", autonomy_active)
                 update_state("mission_status", {
                     **mission_status,
                     "current_mode": "RTL",
@@ -403,6 +407,7 @@ async def run():
             )
             if autonomy_active:
                 autonomy_active = False
+                update_state("autonomy_active", autonomy_active)
                 update_state("mission_status", {**mission_status, "current_mode": "Paused_TelemetryLoss"})
             await asyncio.sleep(state_period_s)
             continue
@@ -428,10 +433,17 @@ async def run():
         }
         pilot_in_control = flight_mode in manual_override_modes
 
-        if pilot_in_control and autonomy_active:
-            log.info("Pilot Override detected. Pausing Autonomy (mode=%s)", flight_mode)
-            autonomy_active = False
-            update_state("mission_status",{**mission_status, "current_mode": "Paused_PilotOverride"})
+        if pilot_in_control:
+            if autonomy_active or mission_status.get("current_mode") != "Paused_PilotOverride":
+                log.info("Pilot Override detected. Pausing Autonomy (mode=%s)", flight_mode)
+
+                autonomy_active = False
+                update_state("autonomy_active", False)
+                update_state("mission_status", {
+                    **mission_status,
+                    "current_mode": "Paused_PilotOverride"
+                })
+
             await asyncio.sleep(state_period_s)
             continue
 
@@ -446,26 +458,44 @@ async def run():
 
         if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
             log.info("Aircraft is in RTL. Not re-enabling autonomy.")
+            autonomy_active = False
+            update_state("autonomy_active", False)
+            update_state("mission_status", {
+                **mission_status,
+                "current_mode": "RTL",
+            })
             await asyncio.sleep(state_period_s)
             continue
 
         if should_autonomy and not autonomy_active:
+
+            if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
+                # NEVER re-enable during RTL
+                await asyncio.sleep(state_period_s)
+                continue
+
+            if pilot_in_control:
+                # don't re-enable if pilot still flying
+                await asyncio.sleep(state_period_s)
+                continue
             log.info("Autonomy enabled")
             autonomy_active = True
-
+            update_state("autonomy_active", autonomy_active)
             state = start_search_phase(state)
             update_state("search_phase", state["search_phase"])
             update_state("decision", state["decision"])
 
-            update_state("mission_status", {
-                **mission_status,
-                "current_mode": "Searching",
-            })
+            if mission_status.get("current_mode") != "Searching":
+                update_state("mission_status", {
+                    **mission_status,
+                    "current_mode": "Searching",
+                })
 
         elif not should_autonomy and autonomy_active:
             # Stopping Autonomy
             log.info("Autonomy disabled")
             autonomy_active = False
+            update_state("autonomy_active", autonomy_active)
             await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: mav_loiter_in_place(mav),
@@ -519,6 +549,7 @@ async def run():
             try:
                 await drone.action.return_to_launch()
                 autonomy_active = False
+                update_state("autonomy_active", autonomy_active)
                 update_state("mission_status", {
                     **mission_status,
                     "current_mode": "RTL_SearchTimeout",
@@ -621,10 +652,7 @@ async def run():
 
         # asyncio.ensure_future(watch_mission_progress(fix_id))
 
-        update_state("mission_status", {
-            **mission_status,
-            "current_mode": "Searching",
-        })
+        
         await asyncio.sleep(state_period_s)
         continue
 
