@@ -4,12 +4,15 @@ import json
 import time
 from pathlib import Path
 
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from state.state_utils import load_state, update_state
 
 DEFAULT_MAX_TIME_DIFF_MS     = 250 #Difference in telemetry t_rx_ms and kraken t_rx_ms (Can't be over 250 cuz that means its too far apart)
-DEFAULT_MIN_CONFIDENCE       = 0.5
-DEFAULT_MAX_ROLL_DEG         = 30.0
-DEFAULT_MIN_GROUND_SPEED_FT_S = 3.0
+DEFAULT_MIN_CONFIDENCE       = 0.3
+DEFAULT_MAX_ROLL_DEG         = 60.0
+DEFAULT_MIN_GROUND_SPEED_FT_S = 0.0
 
 SCRIPT_NAME = "fusion_logger.py"
 
@@ -75,15 +78,18 @@ def is_usable(
     min_ground_speed_ft_s: float,
 ) -> bool:
     if abs(dt_ms) > max_time_diff_ms:
+        print(f"FAIL dt_ms: {dt_ms}")
         return False
     if confidence_0_1 is None or confidence_0_1 < min_confidence:
+        print(f"FAIL confidence: {confidence_0_1}")
         return False
     if roll_deg is None or abs(roll_deg) > max_roll_deg:
+        print(f"FAIL roll_deg: {roll_deg}")
         return False
     if ground_speed_ft_s is None or ground_speed_ft_s < min_ground_speed_ft_s:
+        print(f"FAIL grsound_speed_ft_s: {ground_speed_ft_s}")
         return False
     return True
-
 
 def fuse(
     kraken_records: list[dict],
@@ -109,7 +115,9 @@ def fuse(
 
         dt_ms = t["t_rx_ms"] - k_ts
 
-        
+              
+
+       
         if abs(dt_ms) > max_time_diff_ms:
             continue
 
@@ -149,6 +157,7 @@ def fuse(
                 max_roll_deg=max_roll_deg,
                 min_ground_speed_ft_s=min_ground_speed_ft_s,
             ),
+            # "usable_for_triangulation": True,
         }
         fused.append(record)
 
@@ -225,6 +234,16 @@ def main() -> None:
 
             update_state("fusion_log", str(out_file))
 
+        #Makes sure it exists first
+        if not kraken_file.exists():
+            print(f"[fusion_logger] Waiting: Kraken file does not exist yet: {kraken_file}")
+            time.sleep(IDLE_POLL_INTERVAL_S)
+            continue
+
+        if not tel_file.exists():
+            print(f"[fusion_logger] Waiting: Telemetry file does not exist yet: {tel_file}")
+            time.sleep(IDLE_POLL_INTERVAL_S)
+            continue
         # re-read both files completely on every cycle
         # JSONL files are append-only, loading them fresh each time is the simplest way to pick up newly appended records
         kraken_records = load_jsonl(kraken_file)
