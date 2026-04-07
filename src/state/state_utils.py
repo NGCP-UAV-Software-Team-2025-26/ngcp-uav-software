@@ -13,16 +13,29 @@ DEFAULTS = {
     "telemetry_log": None,
     "fusion_log": None,
     "autonomy_active": False,
+
+    "search_phase": {
+        "start_time":           None,
+        "time_limit_s":         480,
+        "session_id":           None
+    },
     "pending_action": None,
     "rtl_requested": False,
 
     "target_fix": {
+        "fix_id": None,
         "lat": None,
         "lon": None,
-        "alt": None,
         "confidence": None,
-        "fix_id": None,
         "timestamp": None,
+    },
+
+    "best_fix": {
+        "fix_id":       None,
+        "lat":          None,
+        "lon":          None,
+        "confidence":   None,
+        "timestamp":    None
     },
 
     "mission_status": {
@@ -36,7 +49,8 @@ DEFAULTS = {
 def load_state() -> dict:
     try:
         if STATE_FILE.exists():
-            return {**DEFAULTS, **json.loads(STATE_FILE.read_text())}
+            loaded = json.loads(STATE_FILE.read_text())
+            return _merge_dicts(DEFAULTS, loaded)
     except Exception:
         pass
     return dict(DEFAULTS)
@@ -45,3 +59,12 @@ def update_state(key: str, value) -> None:
     state = load_state()
     state[key] = value
     STATE_FILE.write_text(json.dumps(state, indent=2))
+
+def _merge_dicts(default: dict, override: dict) -> dict:
+    result = dict(default)
+    for k, v in override.items():
+        if isinstance(v, dict) and isinstance(result.get(k), dict):
+            result[k] = _merge_dicts(result[k], v)
+        else:
+            result[k] = v
+    return result
