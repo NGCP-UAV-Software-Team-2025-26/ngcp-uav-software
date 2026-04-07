@@ -285,7 +285,7 @@ async def run():
     
 
     #Heartbeat for pymavlink (Will need to change the UDP port when incorporated everything else)
-    mav = mav_connect("udpin:0.0.0.0:14602")
+    mav = mav_connect("udpin:0.0.0.0:14603")
     
 
     autonomy_active = False
