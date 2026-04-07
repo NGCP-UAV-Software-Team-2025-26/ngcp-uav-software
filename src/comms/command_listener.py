@@ -23,6 +23,8 @@ CMD_STOP_AUTONOMY = 31003
 CMD_REBOOT = 31004
 CMD_SHUTDOWN = 31005
 
+CMD_NEW_SEARCH_SESSION = 31006
+
 VALID_COMMANDS = (
     CMD_START_LOG,
     CMD_STOP_LOG,
@@ -30,6 +32,7 @@ VALID_COMMANDS = (
     CMD_STOP_AUTONOMY,
     CMD_REBOOT,
     CMD_SHUTDOWN,
+    CMD_NEW_SEARCH_SESSION,
 )
 
 
@@ -39,7 +42,12 @@ def main():
    print(f"Listening for MAVLink on {LISTEN_URI} ...")
    print(f"State file: {STATE_FILE}")
    print()
-   print(f"Commands: START_LOG={CMD_START_LOG}, STOP_LOG={CMD_STOP_LOG}")
+   print(
+    f"Commands: START_LOG={CMD_START_LOG}, STOP_LOG={CMD_STOP_LOG}, "
+    f"START_AUTONOMY={CMD_START_AUTONOMY}, STOP_AUTONOMY={CMD_STOP_AUTONOMY}, "
+    f"REBOOT={CMD_REBOOT}, SHUTDOWN={CMD_SHUTDOWN}, "
+    f"NEW_SEARCH_SESSION={CMD_NEW_SEARCH_SESSION}"
+    )
    print("Waiting for COMMAND_LONG\n")
 
 
@@ -106,7 +114,7 @@ def main():
         print("STOP_LOG applied (state updated)\n")
 
     elif cmd == CMD_START_AUTONOMY:
-        update_state("autonomy_enabled", True)
+        update_state("autonomy_active", True)
         update_state("last_command", "START_AUTONOMY")
         update_state("last_sender_sysid", src_sys)
         update_state("last_sender_compid", src_comp)
@@ -114,7 +122,7 @@ def main():
         print("START_AUTONOMY applied (state updated)\n")
 
     elif cmd == CMD_STOP_AUTONOMY:
-        update_state("autonomy_enabled", False)
+        update_state("autonomy_active", False)
         update_state("last_command", "STOP_AUTONOMY")
         update_state("last_sender_sysid", src_sys)
         update_state("last_sender_compid", src_comp)
@@ -135,7 +143,13 @@ def main():
         update_state("timestamp", time.time())
         print("Shutdown (state applied)\n")
     
-
+    elif cmd == CMD_NEW_SEARCH_SESSION:
+        update_state("pending_action", "new_search_session")
+        update_state("last_command", "NEW_SEARCH_SESSION")
+        update_state("last_sender_sysid", src_sys)
+        update_state("last_sender_compid", src_comp)
+        update_state("timestamp", time.time())
+        print("NEW_SEARCH_SESSION applied (state updated)\n")
 
     else:
         print(f"Unrecognised command id={cmd}, ignoring.\n")

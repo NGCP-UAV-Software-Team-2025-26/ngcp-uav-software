@@ -8,7 +8,7 @@ import os
 # can simultaneously access the telemetry stream on port 14550.
 # If you want to bypass MAVProxy and connect directly to the radio, 
 # set the RFD_PORT environment variable to the serial path (e.g. /dev/ttyUSB0).
-RFD_PORT = os.environ.get("RFD_PORT", "udpin:127.0.0.1:14601")
+RFD_PORT = os.environ.get("RFD_PORT", "udp:127.0.0.1:14601")
 RFD_BAUD = int(os.environ.get("RFD_BAUD", 57600))
 
 
@@ -21,10 +21,11 @@ CMD_STOP_AUTONOMY = 31003
 CMD_REBOOT = 31004
 CMD_SHUTDOWN = 31005
 
+CMD_NEW_SEARCH_SESSION = 31006
 
 ACK_TIMEOUT = 3
 
-#Target system/component to target PX4 directly (1,1)
+#Target system/component to target mavlink listener directly (1,1)
 TARGET_SYSTEM    = 1
 TARGET_COMPONENT = 191
 
@@ -35,6 +36,7 @@ CMD_MAP = {
     "auto_stop": CMD_STOP_AUTONOMY,
     "reboot": CMD_REBOOT,
     "shutdown": CMD_SHUTDOWN,
+    "new_search_session": CMD_NEW_SEARCH_SESSION,
 }
 
 MAV_RESULT = {
@@ -120,12 +122,17 @@ def main():
             print("Exiting.")
             break
 
+        if s == "help":
+            print("Available commands:", ", ".join(CMD_MAP.keys()))
+            continue
+
         if s not in CMD_MAP:
             print(f"Unknown command '{s}'. Type 'help' for available commands.")
             continue
 
         cmd_id = CMD_MAP[s]
         send_command_long(m, cmd_id)
+        wait_for_ack(m, cmd_id)
         print(f"Sent COMMAND_LONG: {s.upper()} (cmd_id={cmd_id})")
 
 
