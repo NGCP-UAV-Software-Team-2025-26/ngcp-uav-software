@@ -12,7 +12,7 @@ DEFAULTS = {
     "kraken_log": None,
     "telemetry_log": None,
     "fusion_log": None,
-    "autonomy_enabled": False,
+    "autonomy_active": False,
     "pending_action": None,
     "rtl_requested": False,
 
