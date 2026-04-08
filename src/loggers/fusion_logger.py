@@ -172,21 +172,14 @@ def main() -> None:
     parser.add_argument("--min_ground_speed_ft_s", type=float, default=DEFAULT_MIN_GROUND_SPEED_FT_S)
     args = parser.parse_args()
 
-    # For startup, read mission_state once at launch and record whatever telemetry_log is set to right now (a path string, or None). 
-    # This value becomes the "baseline" we compare against while idle.
-    # The fusion logger will stay suspended until mission_state shows a *different* string here, meaning telemetry_logger has started a new session and written a new file name. 
-    startup_tel_path: str | None = load_state().get("telemetry_log")
-
-    # active_tel_path tracks the telemetry path for the session that is currently being fused.  
-    # Start as None and is set the moment change detected and begin session
-    active_tel_path: str | None = None
-
+    active_session: tuple[str, str] | None = None
     out_file: Path | None = None
+    run_id: str | None = None
+    t_fusion_start_ms: int | None = None
 
-    print(
-        f"[fusion_logger] Suspended. Baseline telemetry_log = {startup_tel_path!r}\n"
-        f"  Waiting for mission_state to show a different telemetry_log …"
-    )
+    
+    print("[fusion_logger] Waiting for kraken_log and telemetry_log in mission_state ...")
+    
 
 
     # Main continuous loop 
@@ -197,12 +190,6 @@ def main() -> None:
         kraken_path_str = state.get("kraken_log")
         tel_path_str    = state.get("telemetry_log")
 
-        # IDLE GATE, stay suspended until telemetry_log in mission_state is different from what it was when this process started.
-        # ("Different" covers both None -> path and oldpath -> newpath)
-        if tel_path_str == startup_tel_path:
-            # Nothing changed
-            time.sleep(IDLE_POLL_INTERVAL_S)
-            continue
 
         # Kraken log need valid path in state before fusing
         if not kraken_path_str:
@@ -210,12 +197,20 @@ def main() -> None:
             time.sleep(IDLE_POLL_INTERVAL_S)
             continue
 
+        #Telemetry needs valid path
+        if not tel_path_str:
+            print("[fusion_logger] Waiting: telemetry_log not in state yet ...")
+            time.sleep(IDLE_POLL_INTERVAL_S)
+            continue
+
+        session = (kraken_path_str, tel_path_str)
+
         kraken_file = Path(kraken_path_str)
         tel_file    = Path(tel_path_str)   # tel_path_str is not None here
 
         # NEW-SESSION DETECTION, fires once when telemetry_log first changes (startup→new), and again any time it changes a second time mid-run (new session within the same process lifetime)
-        # active_tel_path tracks which session is currently being fused.
-        if tel_path_str != active_tel_path:
+        # active_session tracks the (kraken_log, telemetry_log) pair being fused
+        if session != active_session:
             # Extract run_id from the kraken filename, same as the original code.
             run_id = kraken_file.stem.replace("doa_", "")
 
@@ -224,9 +219,9 @@ def main() -> None:
             # Record start time of fusion session for meta file
             t_fusion_start_ms = int(time.time() * 1000)
 
-            active_tel_path = tel_path_str
+            active_session = session
 
-            print(f"\n[fusion_logger] New telemetry file detected — starting session.")
+            print(f"\n[fusion_logger] New fusion session detected.")
             print(f"  run_id      : {run_id}")
             print(f"  Kraken      : {kraken_file.name}")
             print(f"  Telemetry   : {tel_file.name}")
@@ -254,6 +249,7 @@ def main() -> None:
 
         if not kraken_records or not tel_records:
             # One of the files is present but still empty
+            print("[fusion_logger] Waiting: logs exist but no data yet")
             time.sleep(ACTIVE_POLL_INTERVAL_S)
             continue
 
@@ -274,11 +270,16 @@ def main() -> None:
         # print(f"  Fused records          : {len(fused)}")
         # print(f"  Usable for triangulation: {n_usable} / {len(fused)}")
 
+        if out_file is None or run_id is None:
+            time.sleep(IDLE_POLL_INTERVAL_S)
+            continue
+
         # WRITE, overwrite the fusion file completely on each cycle
         with open(out_file, "w", encoding="utf-8") as f:
             for record in fused:
                 f.write(json.dumps(record) + "\n")
 
+        
         print(
             f"[fusion_logger] {time.strftime('%H:%M:%S')} — "
             f"kraken={len(kraken_records)} | tel={len(tel_records)} | "
