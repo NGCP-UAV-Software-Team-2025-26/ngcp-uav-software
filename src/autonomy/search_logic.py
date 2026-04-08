@@ -33,7 +33,7 @@ def valid_fix(fix: dict, min_confidence: float = 0.4) -> bool:
 
 
 def get_elapsed(state: dict) -> float:
-    """Return elapsed search time in seconds."""
+    # Search time
     start = state.get("search_phase", {}).get("start_time")
     if start is None:
         return 0.0
@@ -41,10 +41,7 @@ def get_elapsed(state: dict) -> float:
 
 
 def start_search_phase(state: dict) -> dict:
-    """
-    Start the search timer once.
-    If it already exists, do nothing.
-    """
+    # starts search timer
     phase = state.get("search_phase", {})
     if phase.get("start_time") is not None:
         return state
@@ -96,7 +93,7 @@ def reset_search_phase(state: dict) -> dict:
 
 
 def update_elapsed(state: dict) -> dict:
-    """Update elapsed_s in search_phase."""
+    # Updates the time
     phase = state.get("search_phase", {})
     if phase.get("start_time") is not None:
         phase["elapsed_s"] = round(get_elapsed(state), 1)

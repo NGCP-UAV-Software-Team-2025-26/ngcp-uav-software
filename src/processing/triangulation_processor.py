@@ -335,7 +335,7 @@ def compute_estimate(
         "alt":        None,  # DOA triangulation is 2-D; altitude not derived
         "confidence": estimate_confidence,
         "fix_id":     next_fix_id,
-        "timestamp":  time.time(),
+        "timestamp":  int(time.time() * 1000),
     }
 
 
@@ -442,6 +442,20 @@ def process_once() -> None:
 
     # Publish to mission state
     update_state("target_fix", estimate)
+
+    state = load_state()
+
+    current_best = load_state().get("best_fix", {})
+    current_conf = current_best.get("confidence")
+    new_conf = estimate.get("confidence")
+
+    if new_conf is not None and new_conf >= 0.4:
+        if current_conf is None or new_conf > current_conf:
+            update_state("best_fix", estimate)
+            log.info(
+                "Updated best_fix -> fix #%d | lat=%.6f lon=%.6f conf=%.4f",
+                estimate["fix_id"], estimate["lat"], estimate["lon"], estimate["confidence"]
+            )
 
     # Adapt thresholds since have have a previous and new estimate
     if _current_estimate is not None:

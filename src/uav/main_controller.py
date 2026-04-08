@@ -266,10 +266,10 @@ async def run():
     
     
     #For Real
-    # await drone.connect(system_address="udp://:14606")
+    # await drone.connect(system_address="udp://:14604")
 
     #For Sitl
-    await drone.connect(system_address="udpin://0.0.0.0:14601")
+    await drone.connect(system_address="udpin://0.0.0.0:14604")
   
     log.info("Waiting for autopilot connection...")
     async for state in drone.core.connection_state():
@@ -655,12 +655,6 @@ async def run():
         
         await asyncio.sleep(state_period_s)
         continue
-
-        
-
-
-
-   
 
 if __name__ == "__main__":
   asyncio.run(run())    
