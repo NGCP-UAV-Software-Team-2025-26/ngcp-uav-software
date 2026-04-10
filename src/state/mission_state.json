@@ -1,0 +1,69 @@
+{
+  "logging_enabled": false,
+  "last_command": "STOP_LOG",
+  "timestamp": 1773442842.627419,
+  "last_sender_sysid": 255,
+  "last_sender_compid": 0,
+  "kraken_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\kraken\\doa_20260408_145513.jsonl",
+  "telemetry_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\telemetry\\telemetry_20260408_145527.jsonl",
+  "fusion_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\fusion\\fusion_20260408_145513.jsonl",
+  "autonomy_active": true,
+  "search_phase": {
+    "start_time": null,
+    "time_limit_s": 480,
+    "session_id": null
+  },
+  "pending_action": null,
+  "rtl_requested": false,
+  "target_fix": {
+    "fix_id": 22,
+    "lat": 34.00222510751502,
+    "lon": -118.00491285753505,
+    "confidence": 0.9745864362871165,
+    "timestamp": 1775686182491,
+    "alt": null
+  },
+  "best_fix": {
+    "fix_id": 13,
+    "lat": 33.99601742460394,
+    "lon": -118.00271039396567,
+    "confidence": 0.9814666040268786,
+    "timestamp": 1775685675949,
+    "alt": null
+  },
+  "mission_status": {
+    "active_target_fix_id": null,
+    "last_processed_fix_id": null,
+    "mission_count": 0,
+    "current_mode": "Navigating"
+  },
+  "navigation": {
+    "search_area": [
+      [
+        -5.3291,
+        5.1222134
+      ],
+      [
+        -5.3291331,
+        40.788813748
+      ],
+      [
+        40.9777483168,
+        40.1739127
+      ],
+      [
+        40.123794176,
+        5.1239126
+      ]
+    ],
+    "mission_phase": 1,
+    "current_waypoint": [
+      40.5486746345988,
+      22.648865634283244
+    ],
+    "guidance_waypoint": [
+      34.00591755466431,
+      -118.00822624455995
+    ]
+  }
+}
