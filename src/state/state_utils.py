@@ -21,7 +21,6 @@ DEFAULTS = {
     },
     "pending_action": None,
     "rtl_requested": False,
-
     "target_fix": {
         "fix_id": None,
         "lat": None,
@@ -43,6 +42,13 @@ DEFAULTS = {
         "last_processed_fix_id": None,
         "mission_count": 0,
         "current_mode": None,
+    },
+
+    "navigation": {
+        "search_area": None,
+        "mission_phase": None,
+        "current_waypoint": None,
+        "guidance_waypoint": None,
     }
 }
 
