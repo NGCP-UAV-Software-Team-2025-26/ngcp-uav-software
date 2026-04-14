@@ -17,7 +17,7 @@ from pymavlink import mavutil
 
 RFD_PORT           = os.environ.get("RFD_PORT",           "udp:127.0.0.1:14602")
 TRIANGULATOR_HOST  = os.environ.get("TRIANGULATOR_HOST",  "127.0.0.1")
-TRIANGULATOR_PORT  = int(os.environ.get("TRIANGULATOR_PORT", "14550"))
+TRIANGULATOR_PORT  = 5051
 
 LOG_DIR = Path("logs/fusion_gcs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -27,10 +27,10 @@ def main():
     print(f"[fusion_bridge] Listening on {RFD_PORT}")
     mav  = mavutil.mavlink_connection(RFD_PORT, baud=57600, input=True)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print(f"[fusion_bridge] Forwarding → {TRIANGULATOR_HOST}:{TRIANGULATOR_PORT}")
+    print(f"[fusion_bridge] Forwarding -> {TRIANGULATOR_HOST}:{TRIANGULATOR_PORT}")
 
     log_path = LOG_DIR / f"fusion_gcs_{datetime.utcnow():%Y%m%d_%H%M%S}.jsonl"
-    print(f"[fusion_bridge] GCS log → {log_path}")
+    print(f"[fusion_bridge] GCS log -> {log_path}")
 
     # { seq_int: { chunk_idx: payload_str, '_total': int } }
     buf: defaultdict = defaultdict(dict)
@@ -48,19 +48,16 @@ def main():
             if not text.startswith('F'):
                 continue
             try:
-                header, payload = text[1:5], text[6:]  # skip 'F', split at ':'
-                # Parse: seq(2) chunk_idx(1) total(1)
-                seq_byte   = int(text[1:3])
-                chunk_idx  = int(text[3])
-                total      = int(text[4])
-                payload    = text[6:]                   # everything after 'F##NM:'
-            except (ValueError, IndexError):
+                header, payload = text.split(':', 1)
+                seq_byte   = int(header[1:3])
+                chunk_idx  = int(header[3:5])
+                total      = int(header[5:7])
+            except ValueError:
                 continue
-
             buf[seq_byte][chunk_idx] = payload
             buf[seq_byte]['_total']  = total
 
-            if len(buf[seq_byte]) - 1 == total:  # -1 for '_total' key
+            if all(i in buf[seq_byte] for i in range(total)):
                 raw = ''.join(buf[seq_byte][i] for i in range(total))
                 del buf[seq_byte]
 
@@ -73,7 +70,7 @@ def main():
                 try:
                     record = json.loads(raw)
                 except json.JSONDecodeError as e:
-                    print(f"[bridge] Bad JSON: {e}")
+                    print(f"[bridge] Bad JSON: {e} | RAW: {raw!r}")
                     continue
 
                 record["t_gcs_rx_ms"] = int(time.time() * 1000)
