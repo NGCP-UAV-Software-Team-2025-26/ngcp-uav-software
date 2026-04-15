@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from state.state_utils import load_state, update_state
+from state.mission_state_utils import load_state, update_state
 
 DEFAULT_MAX_TIME_DIFF_MS     = 250 #Difference in telemetry t_rx_ms and kraken t_rx_ms (Can't be over 250 cuz that means its too far apart)
 DEFAULT_MIN_CONFIDENCE       = 0.3

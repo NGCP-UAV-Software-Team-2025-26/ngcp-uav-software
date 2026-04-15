@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from state.state_utils import update_state #For the mission_state.json
+from state.mission_state_utils import update_state #For the mission_state.json
 
 # Kraken DOA endpoint (LOCALHOST on Pi)
 DOA_URL = "http://127.0.0.1:8081/DOA_value.html"
