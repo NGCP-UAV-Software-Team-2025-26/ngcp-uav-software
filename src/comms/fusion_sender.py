@@ -21,7 +21,7 @@ from pymavlink import mavutil
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from state.mission_state_utils import load_state
 
-RFD_PORT         = os.environ.get("RFD_PORT", "udp:127.0.0.1:14601")
+RFD_PORT         = os.environ.get("RFD_PORT", "udp:127.0.0.1:14605")
 RFD_BAUD         = int(os.environ.get("RFD_BAUD", 57600))
 POLL_INTERVAL_S  = 0.1
 CHUNK_PAYLOAD    = 42   # bytes of JSON per STATUSTEXT (50 - 8 header chars)

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from pymavlink import mavutil
 
-RFD_PORT           = os.environ.get("RFD_PORT",           "udp:127.0.0.1:14602")
+RFD_PORT           = os.environ.get("RFD_PORT",           "udp:127.0.0.1:14606")
 TRIANGULATOR_HOST  = os.environ.get("TRIANGULATOR_HOST",  "127.0.0.1")
 TRIANGULATOR_PORT  = 5051
 
