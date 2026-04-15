@@ -9,47 +9,24 @@ DEFAULTS = {
     "timestamp": None,
     "last_sender_sysid": None,
     "last_sender_compid": None,
+
     "kraken_log": None,
     "telemetry_log": None,
     "fusion_log": None,
-    "autonomy_active": False,
 
-    "search_phase": {
-        "start_time":           None,
-        "time_limit_s":         480,
-        "session_id":           None
-    },
+    "autonomy_active": False,
     "pending_action": None,
     "rtl_requested": False,
-    "target_fix": {
-        "fix_id": None,
-        "lat": None,
-        "lon": None,
-        "confidence": None,
-        "timestamp": None,
-    },
-
-    "best_fix": {
-        "fix_id":       None,
-        "lat":          None,
-        "lon":          None,
-        "confidence":   None,
-        "timestamp":    None
-    },
+    
 
     "mission_status": {
-        "active_target_fix_id": None,
-        "last_processed_fix_id": None,
+        "active_plan_id": None,
+        "last_completed_plan_id": None,
         "mission_count": 0,
         "current_mode": None,
+        "active_waypoint_index": None,
     },
 
-    "navigation": {
-        "search_area": None,
-        "mission_phase": None,
-        "current_waypoint": None,
-        "guidance_waypoint": None,
-    }
 }
 
 def load_state() -> dict:
@@ -59,7 +36,7 @@ def load_state() -> dict:
             return _merge_dicts(DEFAULTS, loaded)
     except Exception:
         pass
-    return dict(DEFAULTS)
+    return json.loads(json.dumps(DEFAULTS))
 
 def update_state(key: str, value) -> None:
     state = load_state()
