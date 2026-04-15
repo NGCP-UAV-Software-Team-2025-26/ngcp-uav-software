@@ -9,7 +9,7 @@ from pymavlink import mavutil
 import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from state.state_utils import update_state, STATE_FILE
+from state.mission_state_utils import update_state, STATE_FILE
 
 LISTEN_URI = "udpin:0.0.0.0:14601"
 

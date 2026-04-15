@@ -19,7 +19,7 @@ import sys
 from pymavlink import mavutil
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from state.state_utils import load_state
+from state.mission_state_utils import load_state
 
 RFD_PORT         = os.environ.get("RFD_PORT", "udp:127.0.0.1:14601")
 RFD_BAUD         = int(os.environ.get("RFD_BAUD", 57600))

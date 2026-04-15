@@ -12,7 +12,7 @@ from autonomy.search_logic import (
     update_elapsed,
     check_time_gates,
 )
-from state.state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
+from state.mission_state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
 from mavsdk import System
 # This is now commented out due to MissionItem and Mission Plan only working in PX4
 # from mavsdk.mission import MissionItem, MissionPlan
