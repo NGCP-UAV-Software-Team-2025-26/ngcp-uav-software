@@ -57,7 +57,7 @@ def main():
     print(f"[STATE] Initialized {STATE_FILE}\n")
 
 
-   m = mavutil.mavlink_connection(LISTEN_URI, source_system=1, source_component=191)
+   m = mavutil.mavlink_connection(LISTEN_URI, source_system=200, source_component=191)
 
    print("Sending heartbeat to announce PI5")
    m.mav.heartbeat_send(
