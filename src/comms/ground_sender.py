@@ -26,7 +26,7 @@ CMD_NEW_SEARCH_SESSION = 31006
 ACK_TIMEOUT = 3
 
 #Target system/component to target mavlink listener directly (1,1)
-TARGET_SYSTEM    = 1
+TARGET_SYSTEM    = 200
 TARGET_COMPONENT = 191
 
 CMD_MAP = {
