@@ -5,7 +5,8 @@ import time
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from state.state_utils import load_state, update_state, STATE_FILE
+from state.mission_state_utils import load_state, update_state
+from state.nav_state_utils import load_nav_state, update_nav_state
 
 #######################################################################################################################################
 ### JUST AS A NOTE, THIS WAYPOINT SYSTEM WILL ONLY WORK IF THE SEARCH AREA IS A **CONVEX** QUADRILATERAL. IT WILL NOT WORK FOR CONCAVE. 
@@ -520,10 +521,12 @@ def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
 def run_mission_1():
     print("[MISSION 1] Starting …")
 
-    state = load_state()
-    nav   = state.get("navigation", {})
+    mission_state = load_state()
+    nav_state     = load_nav_state()
 
-    raw_search = nav.get("search_area", [])
+    nav = nav_state.get("navigation", {})
+
+    raw_search = nav_state.get("search_area", [])
     if len(raw_search) != 4:
         raise ValueError(f"search_area must have 4 entries, got {len(raw_search)}")
 
@@ -533,11 +536,11 @@ def run_mission_1():
             raise ValueError(f"Invalid search_area entry: {entry}")
         search_coords.append((float(entry[0]), float(entry[1])))
 
-    fusion_log_path = state.get("fusion_log", "")
+    fusion_log_path = mission_state.get("fusion_log", "")
 
     # Update mission phase
     nav["mission_phase"] = 1
-    update_state("navigation", nav)
+    update_nav_state("navigation", nav)
     print("[STATE] mission_phase → 1")
 
     # Build diamond and waypoints
@@ -578,10 +581,10 @@ def run_mission_1():
             traceback.print_exc()
 
     # Write initial state
-    nav = load_state().get("navigation", {})
+    nav = load_nav_state().get("navigation", {})
     nav["current_waypoint"]  = list(waypoints_ll[current_wp_idx])
     nav["guidance_waypoint"] = list(waypoints_ll[current_wp_idx])
-    update_state("navigation", nav)
+    update_nav_state("navigation", nav)
 
     print("[MISSION 1] Entering guidance loop (Ctrl-C to stop) …")
 
@@ -605,10 +608,10 @@ def run_mission_1():
                 wp_lat, wp_lon = waypoints_ll[current_wp_idx]
                 print(f"[NAV] Captured → WP{current_wp_idx} "
                       f"({wp_lat:.7f}, {wp_lon:.7f})")
-                nav = load_state().get("navigation", {})
+                nav = load_nav_state().get("navigation", {})
                 nav["current_waypoint"]  = [wp_lat, wp_lon]
                 nav["guidance_waypoint"] = [wp_lat, wp_lon]
-                update_state("navigation", nav)
+                update_nav_state("navigation", nav)
 
             # L1 guidance — compute lookahead point and write to state
             _, des_brng, dist = l1_guidance(
@@ -617,9 +620,9 @@ def run_mission_1():
             guide_lat, guide_lon = destination(
                 plane_lat, plane_lon, des_brng, min(L1_DISTANCE_M, dist)
             )
-            nav = load_state().get("navigation", {})
+            nav = load_nav_state().get("navigation", {})
             nav["guidance_waypoint"] = [guide_lat, guide_lon]
-            update_state("navigation", nav)
+            update_nav_state("navigation", nav)
 
             time.sleep(UPDATE_INTERVAL_S)
 
