@@ -152,7 +152,7 @@ def main():
     else:
         print(f"Unrecognised command id={cmd}, ignoring.\n")
 
-    m.mav.command_ack_send(msg.command, 0, target_system=msg.get_srcSystem(), target_component=msg.get_srcComponent())
+    m.mav.command_ack_send(msg.command, 0)
 
 if __name__ == "__main__":
    main()

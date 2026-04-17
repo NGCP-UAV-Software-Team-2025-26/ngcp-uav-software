@@ -93,7 +93,7 @@ def main():
         print("ERROR: No heartbeat received. mavlink-router and upstream serial link.")
         return
 
-    print(f"MAVLink Heartbeat received from system={m.target_system} component={m.target_component}")
+    print(f"MAVLink Heartbeat detected (from system={hb.get_srcSystem()} component={hb.get_srcComponent()}). Link is active.")
 
     print("Waiting for telemetry...")
     msg = m.recv_match(type='SYS_STATUS', blocking=True, timeout=5)
