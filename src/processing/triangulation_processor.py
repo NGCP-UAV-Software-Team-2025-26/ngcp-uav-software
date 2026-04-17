@@ -32,7 +32,7 @@ import logging
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from state.state_utils import load_state, update_state, STATE_FILE
+from state.mission_state_utils import load_state, update_state, STATE_FILE
 STATE_POLL_HZ = 2.0
 
 #  BASE (INITIAL) THRESHOLDS  –  live values start here and adapt from here

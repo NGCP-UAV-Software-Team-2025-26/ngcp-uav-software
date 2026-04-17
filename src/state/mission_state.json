@@ -4,24 +4,33 @@
   "timestamp": 1773442842.627419,
   "last_sender_sysid": 255,
   "last_sender_compid": 0,
-  "kraken_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/kraken/doa_20260415_135001.jsonl",
-  "telemetry_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/telemetry/telemetry_20260410_182359.jsonl",
-  "fusion_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/fusion/fusion_20260410_182355.jsonl",
+  "kraken_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\kraken\\doa_20260417_013346.jsonl",
+  "telemetry_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\telemetry\\telemetry_20260417_013342.jsonl",
+  "fusion_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\fusion\\fusion_20260417_013346.jsonl",
   "autonomy_active": true,
+  "pending_action": null,
+  "rtl_requested": false,
+  "mission_status": {
+    "active_plan_id": null,
+    "last_completed_plan_id": null,
+    "mission_count": 0,
+    "current_mode": "Navigating",
+    "active_waypoint_index": null,
+    "active_target_fix_id": null,
+    "last_processed_fix_id": null
+  },
   "search_phase": {
     "start_time": null,
     "time_limit_s": 480,
     "session_id": null
   },
-  "pending_action": null,
-  "rtl_requested": false,
   "target_fix": {
-    "fix_id": 22,
-    "lat": 34.00222510751502,
-    "lon": -118.00491285753505,
-    "confidence": 0.9745864362871165,
-    "timestamp": 1775686182491,
-    "alt": null
+    "lat": 33.9974806666239,
+    "lon": -118.00110643684538,
+    "alt": null,
+    "confidence": 0.8767819800236901,
+    "fix_id": 8,
+    "timestamp": 1776414878414
   },
   "best_fix": {
     "fix_id": 13,
@@ -30,12 +39,6 @@
     "confidence": 0.9814666040268786,
     "timestamp": 1775685675949,
     "alt": null
-  },
-  "mission_status": {
-    "active_target_fix_id": null,
-    "last_processed_fix_id": null,
-    "mission_count": 0,
-    "current_mode": "Navigating"
   },
   "navigation": {
     "search_area": [

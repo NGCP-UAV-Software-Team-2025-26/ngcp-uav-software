@@ -1,0 +1,45 @@
+{
+  "search_area": [
+    [
+      34.0,
+      -118.0
+    ],
+    [
+      34.0,
+      -118.02
+    ],
+    [
+      34.02,
+      -118.02
+    ],
+    [
+      34.02,
+      -118.0
+    ]
+  ],
+  "patient_location": {
+    "lat": null,
+    "lon": null,
+    "confidence": null,
+    "timestamp": null
+  },
+  "active_plan": {
+    "plan_id": null,
+    "plan_type": null,
+    "status": null,
+    "waypoints": [],
+    "loiter_radius_m": null
+  },
+  "next_plan": null,
+  "navigation": {
+    "mission_phase": 1,
+    "current_waypoint": [
+      34.00056378272483,
+      -118.00988698689754
+    ],
+    "guidance_waypoint": [
+      34.00077053018209,
+      -118.00895282063838
+    ]
+  }
+}
