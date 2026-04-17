@@ -66,17 +66,27 @@ def main():
     0, 0, 0
    )
 
-   print("Waiting for heartbeat to confirm MAVLink link")
-   m.wait_heartbeat(timeout=30)
-   print(f"Heartbeat received. Listening for COMMAND_LONG messages...\n")
+    print("Waiting for heartbeat to confirm MAVLink link")
+    m.wait_heartbeat(timeout=30)
+    print(f"Heartbeat received. Listening for COMMAND_LONG messages...\n")
   
-   while True:
+    last_heartbeat_time = 0
+
+    while True:
+        # Send heartbeat at 1Hz to maintain route in mavlink-router
+        current_time = time.time()
+        if current_time - last_heartbeat_time >= 1.0:
+            m.mav.heartbeat_send(
+                mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                mavutil.mavlink.MAV_AUTOPILOT_INVALID,
+                0, 0, 0
+            )
+            last_heartbeat_time = current_time
     
-    msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=5)
+        msg = m.recv_match(type="COMMAND_LONG", blocking=True, timeout=1.0)
 
-
-    if msg is None:
-        continue
+        if msg is None:
+            continue
     
     # Only process commands intended for this system and component
     if msg.target_system != 200 or msg.target_component != 191:
