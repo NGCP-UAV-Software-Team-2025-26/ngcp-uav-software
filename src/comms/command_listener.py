@@ -78,14 +78,12 @@ def main():
     if msg is None:
         continue
     
-    
+    # Only process commands intended for this system and component
+    if msg.target_system != 200 or msg.target_component != 191:
+        continue
+
     src_sys = msg.get_srcSystem()
     src_comp = msg.get_srcComponent()
-
-
-    #Print Got command_long
-    # cmd = int(msg.command)
-    # 
 
     cmd = int(msg.command)
 

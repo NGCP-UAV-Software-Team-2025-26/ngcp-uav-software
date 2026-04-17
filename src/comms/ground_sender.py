@@ -103,9 +103,9 @@ def main():
     else:
         print("Telemetry stream confirmed")
 
-    # NEW: Update global targets based on the heartbeat
-    global TARGET_SYSTEM
-    TARGET_SYSTEM = m.target_system
+    # We DO NOT update global targets based on the heartbeat.
+    # The heartbeat is likely from the Pixhawk (sys 1), but we want to send 
+    # commands to the companion computer (TARGET_SYSTEM=200, TARGET_COMPONENT=191).
     print("Ground console ready.\n")
     print()
     print("Available commands:", ", ".join(CMD_MAP.keys()))
