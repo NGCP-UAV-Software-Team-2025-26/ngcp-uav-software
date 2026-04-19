@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from state.state_utils import load_state, update_state #For the mission_state.json
+from state.mission_state_utils import load_state, update_state #For the mission_state.json
 from state.nav_state_utils import load_nav_state, update_nav_state #For waypoints and what not
 from mavsdk import System
 
@@ -268,7 +268,7 @@ async def run():
     
 
     autonomy_active = False
-    controller_status = load_state().get("controller_status", {})
+    
     update_state("controller_status", {
         **controller_status,
         "autonomy_active": False,
@@ -471,7 +471,7 @@ async def run():
             controller_status = load_state().get("controller_status", {})
             update_state("controller_status", {
                 **controller_status,
-                "autonomy_active": True, #Is this right ?
+                "autonomy_active": True, 
                 
             })
 
@@ -488,7 +488,7 @@ async def run():
             controller_status = load_state().get("controller_status", {})
             update_state("controller_status", {
                 **controller_status,
-                "autonomy_active": False, #is this right ?
+                "autonomy_active": False, 
                 
             })
             await asyncio.get_event_loop().run_in_executor(
@@ -496,7 +496,10 @@ async def run():
                 lambda: mav_loiter_in_place(mav),
             )
 
-            update_state("mission_status", {"current_mode": "Idle"})
+            update_state("mission_status", {
+                **mission_status,
+                "current_mode": "Idle",
+            })
             await asyncio.sleep(state_period_s)
             continue
         
