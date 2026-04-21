@@ -6,6 +6,8 @@ NAV_STATE_FILE = Path(__file__).resolve().parent / "navigation_state.json"
 DEFAULTS = {
     "search_area": None,
 
+    "ERR_Location": False,
+
     "patient_location": {
         "lat": None,
         "lon": None,
@@ -19,6 +21,7 @@ DEFAULTS = {
         "status": None,
         "waypoints": [],
         "loiter_radius_m": None,
+        "alt_m": None,
     },
 
     "next_plan": None,
