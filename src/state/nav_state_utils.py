@@ -6,13 +6,41 @@ NAV_STATE_FILE = Path(__file__).resolve().parent / "navigation_state.json"
 DEFAULTS = {
     "search_area": None,
 
-    "ERR_Location": False,
-
-    "patient_location": {
+    "mra_refined_loiter_target": {
         "lat": None,
         "lon": None,
         "confidence": None,
         "timestamp": None,
+        "fix_id": None,
+        "valid": False
+    },
+
+    "mra_final_estimated_location": {
+        "lat": None,
+        "lon": None,
+        "confidence": None,
+        "timestamp": None,
+        "fix_id": None,
+        "valid": False
+    },
+
+    "eru_reported_location": {
+        "lat": None,
+        "lon": None,
+        "confidence": None,
+        "timestamp": None,
+        "report_id": None,
+        "valid": False
+    },
+
+    "target_location": {
+        "source": None,
+        "lat": None,
+        "lon": None,
+        "confidence": None,
+        "timestamp": None,
+        "id": None,
+        "valid": False
     },
 
     "active_plan": {
