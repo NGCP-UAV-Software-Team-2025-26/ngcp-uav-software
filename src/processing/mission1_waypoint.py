@@ -20,7 +20,7 @@ BORDER_CLEARANCE_M = 50.0   # Diamond corners must be at least this far from sea
 L1_DISTANCE_M      = 30.0   # L1 guidance lookahead distance (m)
 UPDATE_INTERVAL_S  = 0.1    # Guidance loop polling interval (s)
 GENERATE_IMAGE     = True   # Toggle PNG map generation (True / False)
-MISSION_TIMEOUT_S  = 600.0  # Maximum mission runtime in seconds (0 = no limit)
+MISSION_TIMEOUT_S  = 240.0  # Maximum mission runtime in seconds (0 = no limit)
 
 EARTH_RADIUS_M = 6_371_000.0
 
