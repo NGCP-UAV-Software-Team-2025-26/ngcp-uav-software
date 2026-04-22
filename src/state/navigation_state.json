@@ -17,18 +17,46 @@
       -118.0
     ]
   ],
-  "patient_location": {
+  "mra_refined_loiter_target": {
     "lat": null,
     "lon": null,
     "confidence": null,
-    "timestamp": null
+    "timestamp": null,
+    "fix_id": null,
+    "valid": false
+  },
+  "mra_final_estimated_location": {
+    "lat": null,
+    "lon": null,
+    "confidence": null,
+    "timestamp": null,
+    "fix_id": null,
+    "valid": false
+  },
+  "eru_reported_location": {
+    "lat": null,
+    "lon": null,
+    "confidence": null,
+    "timestamp": null,
+    "report_id": null,
+    "valid": false
+  },
+  "target_location": {
+    "source": null,
+    "lat": null,
+    "lon": null,
+    "confidence": null,
+    "timestamp": null,
+    "id": null,
+    "valid": false
   },
   "active_plan": {
     "plan_id": null,
     "plan_type": null,
     "status": null,
     "waypoints": [],
-    "loiter_radius_m": null
+    "loiter_radius_m": null,
+    "alt_m": null
   },
   "next_plan": null,
   "navigation": {
@@ -41,5 +69,11 @@
       34.00077053018209,
       -118.00895282063838
     ]
+  },
+  "patient_location": {
+    "lat": null,
+    "lon": null,
+    "confidence": null,
+    "timestamp": null
   }
 }
