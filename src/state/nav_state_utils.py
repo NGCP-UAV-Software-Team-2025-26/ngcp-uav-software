@@ -48,8 +48,8 @@ DEFAULTS = {
         "plan_type": None,
         "status": None,
         "waypoints": [],
-        "loiter_radius_m": None,
-        "alt_m": None,
+        "loiter_radius_ft": None,
+        "alt_ft": None,
     },
 
     "next_plan": None,

@@ -2,7 +2,7 @@ import sys
 import json
 import math
 import time
-#import subprocess
+import subprocess
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -21,6 +21,7 @@ L1_DISTANCE_M      = 30.0   # L1 guidance lookahead distance (m)
 UPDATE_INTERVAL_S  = 0.1    # Guidance loop polling interval (s)
 GENERATE_IMAGE     = True   # Toggle PNG map generation (True / False)
 #MISSION_TIMEOUT_S  = 240.0  # Maximum mission runtime in seconds (0 = no limit)
+CRUISE_ALT_FT      = 200.0  # Cruise altitude written into active_plan.alt_ft (ft)
 
 EARTH_RADIUS_M = 6_371_000.0
 
@@ -559,6 +560,10 @@ def run_mission_1():
     print("[STATE] active_plan → plan_id=1, plan_type='Diamond Pattern', status='searching'")
     print("[STATE] next_plan   → 2")
 
+    # Write cruise altitude into the nav state so mission 2+ can read it
+    update_nav_state("alt_ft", CRUISE_ALT_FT)
+    print(f"[STATE] alt_ft → {CRUISE_ALT_FT} ft")
+
     # Build diamond and waypoints
     (waypoints_ll, search_xy, raw_diam_xy, shrunk_diam_xy,
      wp_xy, corner_triples, o_lat, o_lon) = build_diamond(search_coords)
@@ -569,10 +574,9 @@ def run_mission_1():
     # ------------------------------------------------------------------
     nav_state   = load_nav_state()
     active_plan = nav_state.get("active_plan", {})
-    alt_m       = active_plan.get("alt_m")          # None is fine — kept as-is
 
     active_plan["waypoints"] = [
-        {"lat": lat, "lon": lon, "alt_m": alt_m}
+        {"lat": lat, "lon": lon, "alt_ft": CRUISE_ALT_FT}
         for lat, lon in waypoints_ll
     ]
     update_nav_state("active_plan", active_plan)
@@ -629,11 +633,7 @@ def run_mission_1():
             #    if elapsed >= MISSION_TIMEOUT_S:
             #        print(f"[MISSION 1] Timeout reached ({MISSION_TIMEOUT_S:.0f}s). Ending mission.")
             #        break
-            #--------------------------------------------------------------
-            refined = load_nav_state().get("mra_refined_loiter_target", {})
-            if refined["valid"] == True:
-                print("Loiter coordinates received. Ending mission 1. Proceeding to Mission 2.")
-                break
+            #------------------------------------------------------------
 
             telem = read_latest_telemetry(fusion_log_path)
             if telem is None:
@@ -668,6 +668,12 @@ def run_mission_1():
             nav = load_nav_state().get("navigation", {})
             nav["guidance_waypoint"] = [guide_lat, guide_lon]
             update_nav_state("navigation", nav)
+
+            # Check exit condition — mra_refined_loiter_target.valid
+            fresh = load_nav_state()
+            if fresh.get("mra_refined_loiter_target", {}).get("valid", False):
+                print("[MISSION 1] Big Loiter coordinates received. Ending mission 1. Proceeding to Mission 2.")
+                break
 
             time.sleep(UPDATE_INTERVAL_S)
 
