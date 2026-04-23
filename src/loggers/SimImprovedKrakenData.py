@@ -8,7 +8,7 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from state.state_utils import update_state, load_state
+from state.mission_state_utils import update_state, load_state
 
 # ==========================
 # CONFIGURATION

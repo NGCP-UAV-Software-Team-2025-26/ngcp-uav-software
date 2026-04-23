@@ -2,14 +2,18 @@ import sys
 import json
 import math
 import time
+import subprocess
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from state.state_utils import load_state, update_state, STATE_FILE
+from state.mission_state_utils import load_state, update_state
+from state.nav_state_utils import load_nav_state, update_nav_state
 
 #######################################################################################################################################
 ### JUST AS A NOTE, THIS WAYPOINT SYSTEM WILL ONLY WORK IF THE SEARCH AREA IS A **CONVEX** QUADRILATERAL. IT WILL NOT WORK FOR CONCAVE. 
 #######################################################################################################################################
+
+STANDBY_INTERVAL_S = 1.0    # Polling interval while waiting for autonomy_active (s)
 
 # MISSION 1 CONFIGURATION
 MAX_TURN_ANGLE_DEG = 35.0   # Max heading change at any waypoint (deg)
@@ -18,6 +22,8 @@ BORDER_CLEARANCE_M = 50.0   # Diamond corners must be at least this far from sea
 L1_DISTANCE_M      = 30.0   # L1 guidance lookahead distance (m)
 UPDATE_INTERVAL_S  = 0.1    # Guidance loop polling interval (s)
 GENERATE_IMAGE     = True   # Toggle PNG map generation (True / False)
+#MISSION_TIMEOUT_S  = 240.0  # Maximum mission runtime in seconds (0 = no limit)
+CRUISE_ALT_FT      = 200.0  # Cruise altitude written into active_plan.alt_ft (ft)
 
 EARTH_RADIUS_M = 6_371_000.0
 
@@ -520,10 +526,21 @@ def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
 def run_mission_1():
     print("[MISSION 1] Starting …")
 
-    state = load_state()
-    nav   = state.get("navigation", {})
+    # ------------------------------------------------------------------
+    # Standby — wait until mission_state.json autonomy_active is True
+    # ------------------------------------------------------------------
+    print("[MISSION 1] Standby … waiting for autonomy_active …")
+    while True:
+        mission_state = load_state()
+        if mission_state.get("autonomy_active", False):
+            print("[MISSION 1] autonomy_active = True — proceeding.")
+            break
+        time.sleep(STANDBY_INTERVAL_S)
 
-    raw_search = nav.get("search_area", [])
+    mission_state = load_state()
+    nav_state     = load_nav_state()
+
+    raw_search = nav_state.get("search_area", [])
     if len(raw_search) != 4:
         raise ValueError(f"search_area must have 4 entries, got {len(raw_search)}")
 
@@ -533,16 +550,50 @@ def run_mission_1():
             raise ValueError(f"Invalid search_area entry: {entry}")
         search_coords.append((float(entry[0]), float(entry[1])))
 
-    fusion_log_path = state.get("fusion_log", "")
+    fusion_log_path = mission_state.get("fusion_log", "")
 
-    # Update mission phase
+    # ------------------------------------------------------------------
+    # Startup: write plan metadata & mission phase before anything else
+    # ------------------------------------------------------------------
+    nav_state = load_nav_state()          # fresh read
+
+    nav = nav_state.get("navigation", {})
     nav["mission_phase"] = 1
-    update_state("navigation", nav)
+    update_nav_state("navigation", nav)
     print("[STATE] mission_phase → 1")
+
+    active_plan = nav_state.get("active_plan", {})
+    active_plan["plan_id"]   = 1
+    active_plan["plan_type"] = "Diamond Pattern"
+    active_plan["status"]    = "searching"
+    update_nav_state("active_plan", active_plan)
+
+    update_nav_state("next_plan", 2)
+
+    print("[STATE] active_plan → plan_id=1, plan_type='Diamond Pattern', status='searching'")
+    print("[STATE] next_plan   → 2")
+
+    # Write cruise altitude into the nav state so mission 2+ can read it
+    update_nav_state("alt_ft", CRUISE_ALT_FT)
+    print(f"[STATE] alt_ft → {CRUISE_ALT_FT} ft")
 
     # Build diamond and waypoints
     (waypoints_ll, search_xy, raw_diam_xy, shrunk_diam_xy,
      wp_xy, corner_triples, o_lat, o_lon) = build_diamond(search_coords)
+    
+    # ------------------------------------------------------------------
+    # Serialise the 12 waypoints into active_plan.waypoints
+    # alt_m is read from active_plan.alt_m (already in the JSON)
+    # ------------------------------------------------------------------
+    nav_state   = load_nav_state()
+    active_plan = nav_state.get("active_plan", {})
+
+    active_plan["waypoints"] = [
+        {"lat": lat, "lon": lon, "alt_ft": CRUISE_ALT_FT}
+        for lat, lon in waypoints_ll
+    ]
+    update_nav_state("active_plan", active_plan)
+    print(f"[STATE] active_plan.waypoints → {len(waypoints_ll)} entries written")
 
     print(f"[WAYPOINTS] {len(waypoints_ll)} waypoints generated:")
     for i, (lat, lon) in enumerate(waypoints_ll):
@@ -578,15 +629,25 @@ def run_mission_1():
             traceback.print_exc()
 
     # Write initial state
-    nav = load_state().get("navigation", {})
+    nav = load_nav_state().get("navigation", {})
     nav["current_waypoint"]  = list(waypoints_ll[current_wp_idx])
     nav["guidance_waypoint"] = list(waypoints_ll[current_wp_idx])
-    update_state("navigation", nav)
+    update_nav_state("navigation", nav)
 
     print("[MISSION 1] Entering guidance loop (Ctrl-C to stop) …")
 
+    #mission_start = time.monotonic()
+
     try:
         while True:
+            #---- timeout check ----------------------------------------
+            #if MISSION_TIMEOUT_S > 0:
+            #    elapsed = time.monotonic() - mission_start
+            #    if elapsed >= MISSION_TIMEOUT_S:
+            #        print(f"[MISSION 1] Timeout reached ({MISSION_TIMEOUT_S:.0f}s). Ending mission.")
+            #        break
+            #------------------------------------------------------------
+
             telem = read_latest_telemetry(fusion_log_path)
             if telem is None:
                 time.sleep(UPDATE_INTERVAL_S)
@@ -605,10 +666,10 @@ def run_mission_1():
                 wp_lat, wp_lon = waypoints_ll[current_wp_idx]
                 print(f"[NAV] Captured → WP{current_wp_idx} "
                       f"({wp_lat:.7f}, {wp_lon:.7f})")
-                nav = load_state().get("navigation", {})
+                nav = load_nav_state().get("navigation", {})
                 nav["current_waypoint"]  = [wp_lat, wp_lon]
                 nav["guidance_waypoint"] = [wp_lat, wp_lon]
-                update_state("navigation", nav)
+                update_nav_state("navigation", nav)
 
             # L1 guidance — compute lookahead point and write to state
             _, des_brng, dist = l1_guidance(
@@ -617,16 +678,37 @@ def run_mission_1():
             guide_lat, guide_lon = destination(
                 plane_lat, plane_lon, des_brng, min(L1_DISTANCE_M, dist)
             )
-            nav = load_state().get("navigation", {})
+            nav = load_nav_state().get("navigation", {})
             nav["guidance_waypoint"] = [guide_lat, guide_lon]
-            update_state("navigation", nav)
+            update_nav_state("navigation", nav)
+
+            # Check exit condition — mra_refined_loiter_target.valid
+            fresh = load_nav_state()
+            if fresh.get("mra_refined_loiter_target", {}).get("valid", False):
+                print("[MISSION 1] Big Loiter coordinates received. Ending mission 1. Proceeding to Mission 2.")
+                break
 
             time.sleep(UPDATE_INTERVAL_S)
 
     except KeyboardInterrupt:
         print("\n[MISSION 1] Stopped.")
 
-    print("[MISSION 1] Done.")
+    # ------------------------------------------------------------------
+    # Mission end: mark status complete, then hand off to mission 2
+    # ------------------------------------------------------------------
+    nav_state   = load_nav_state()
+    active_plan = nav_state.get("active_plan", {})
+    active_plan["status"] = "complete"
+    update_nav_state("active_plan", active_plan)
+    print("[STATE] active_plan.status → 'complete'")
+
+    print("[MISSION 1] Done. Launching mission2_waypoint.py …")
+    mission2_path = Path(__file__).resolve().parent / "mission2_waypoint.py"
+    if mission2_path.exists():
+        subprocess.Popen([sys.executable, str(mission2_path)])
+        print(f"[HANDOFF] Launched {mission2_path}")
+    else:
+        print(f"[WARN] mission2_waypoint.py not found at {mission2_path} — skipping handoff.")
 
 
 if __name__ == "__main__":

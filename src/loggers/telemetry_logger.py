@@ -7,7 +7,7 @@ import os
 import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from state.state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
+from state.mission_state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
 from mavsdk import System
 
 

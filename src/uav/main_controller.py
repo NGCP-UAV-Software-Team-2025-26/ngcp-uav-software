@@ -3,28 +3,12 @@ import logging
 import time
 import sys
 from pathlib import Path
-# from math import nan
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from autonomy.search_logic import (
-    start_search_phase,
-    reset_search_phase,
-    update_elapsed,
-    check_time_gates,
-)
-from state.state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
+from state.mission_state_utils import load_state, update_state #For the mission_state.json
+from state.nav_state_utils import load_nav_state, update_nav_state #For waypoints and what not
 from mavsdk import System
-# This is now commented out due to MissionItem and Mission Plan only working in PX4
-# from mavsdk.mission import MissionItem, MissionPlan
 
-#System from mavsdk brings the following
-#drone.telemetry
-#drone.action
-#drone.mission
-#drone.offboard
-#drone.core
-
-#It's replaced with
 from pymavlink import mavutil
 
 
@@ -39,15 +23,11 @@ log = logging.getLogger("main_controller")
 #Parameters
 STATE_POLL_HZ = 2.0 #How often to check state file
 MIN_ALT_M = 15 #Plane has to be above 15M for autonomy to engage
-# MIN_CONFIDENCE = 0.4 #Ignore traingulation below this (might not need depending on triangulation script)
-# MIN_MISSION_INTERVAL = 10 #Min seconds between mission uploads
 LOITER_ALT_M = 60 #TArget loiter altitutde 
-# LOITER_SPEED_MS = 15 #Cruise speed
-# LOITER_TIME_S = 30 #Min time to circle target
 LOITER_RADIUS_M = 50 #Acceptance radius for the loiter waypoint (Big cuz fixed wing)
 TELEMETRY_TIMEOUT_S = 5 #How old telemetry can be before it is considered bad
 
-#NEW From ARDUPILOT
+#From ARDUPILOT
 ARDUPLANE_MODES = {
     "MANUAL": 0, 
     "CIRCLE": 1, 
@@ -63,10 +43,9 @@ ARDUPLANE_MODES = {
     "GUIDED": 15,
 }
 
-
 #PYMAVLINK Functions
 
-#HEartbeat
+#Heartbeat
 def mav_connect(connection_string: str):
     # Opens a pymavlink connection
     mav = mavutil.mavlink_connection(connection_string)
@@ -97,62 +76,13 @@ def mav_set_mode(mav, mode_name: str) -> bool:
     log.warning("pymavlink: mode ACK not confirmed for %s", mode_name)
     return False
 
-
-def mav_upload_loiter_mission(
-    mav,
-    lat: float,
-    lon: float,
-    alt_m: float,
-    loiter_radius_m: float = LOITER_RADIUS_M,
-) -> None:
-    #   0 — Home placeholder  (ArduPilot always requires item 0 = home)
-    #   1 — NAV_WAYPOINT      fly to target
-    #   2 — NAV_LOITER_UNLIM  circle indefinitely
-    #Raises RuntimeError if the vehicle rejects the upload.
-
-    lat_i = int(lat * 1e7)
-    lon_i = int(lon * 1e7)
-
-    items = [
-        # Item 0: home / origin placeholder
-        dict(
-            command      = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
-            frame        = mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-            current      = 0, autocontinue = 1,
-            param1=0, param2=0, param3=0, param4=0,
-            x=lat_i, y=lon_i, z=alt_m,
-        ),
-        # Item 1: fly to target waypoint
-        dict(
-            command      = mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
-            frame        = mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-            current      = 1,   # ← execution starts here
-            autocontinue = 1,
-            param1 = 0,          # hold time (s) — unused for fixed-wing
-            param2 = 30.0,       # acceptance radius (m)
-            param3 = 0,          # pass-through (0 = stop at WP)
-            param4 = float("nan"),
-            x=lat_i, y=lon_i, z=alt_m,
-        ),
-        # Item 2: loiter indefinitely
-        dict(
-            command      = mavutil.mavlink.MAV_CMD_NAV_LOITER_UNLIM,
-            frame        = mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-            current      = 0, autocontinue = 0,
-            param1 = 0,
-            param2 = 0,
-            param3 = loiter_radius_m,   # positive = clockwise
-            param4 = float("nan"),
-            x=lat_i, y=lon_i, z=alt_m,
-        ),
-    ]
-
+def mav_upload_mission_items(mav, items: list) -> None:
     mav.mav.mission_count_send(
-            mav.target_system,
-            mav.target_component,
-            len(items),
-            mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
-        )
+        mav.target_system,
+        mav.target_component,
+        len(items),
+        mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
+    )
 
     ack = None
     while ack is None:
@@ -166,10 +96,9 @@ def mav_upload_loiter_mission(
 
         t = msg.get_type()
         if t in ("MISSION_REQUEST", "MISSION_REQUEST_INT"):
-            seq  = msg.seq
+            seq = msg.seq
             item = items[seq]
             use_int = (t == "MISSION_REQUEST_INT")
-            log.debug("Sending mission item %d (INT=%s)", seq, use_int)
 
             if use_int:
                 mav.mav.mission_item_int_send(
@@ -196,10 +125,107 @@ def mav_upload_loiter_mission(
             ack = msg
 
     if ack.type != mavutil.mavlink.MAV_MISSION_ACCEPTED:
-        raise RuntimeError(
-            f"Mission rejected by vehicle: MAV_MISSION result={ack.type}"
-        )
+        raise RuntimeError(f"Mission rejected by vehicle: MAV_MISSION result={ack.type}")
+
     log.info("Mission accepted by ArduPilot (%d items)", len(items))
+
+
+def build_loiter_items(plan: dict) -> list:
+    waypoints = plan.get("waypoints", [])
+    if not waypoints:
+        raise ValueError("single_loiter plan has no waypoint")
+
+    wp = waypoints[0]
+    lat = float(wp["lat"])
+    lon = float(wp["lon"])
+    alt_m = float(wp.get("alt_m", LOITER_ALT_M))
+    loiter_radius_m = float(plan.get("loiter_radius_m", LOITER_RADIUS_M))
+
+    lat_i = int(lat * 1e7)
+    lon_i = int(lon * 1e7)
+
+    return [
+        dict(
+            command=mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            current=0, autocontinue=1,
+            param1=0, param2=0, param3=0, param4=0,
+            x=lat_i, y=lon_i, z=alt_m,
+        ),
+        dict(
+            command=mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            current=1, autocontinue=1,
+            param1=0, param2=30.0, param3=0, param4=float("nan"),
+            x=lat_i, y=lon_i, z=alt_m,
+        ),
+        dict(
+            command=mavutil.mavlink.MAV_CMD_NAV_LOITER_UNLIM,
+            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            current=0, autocontinue=0,
+            param1=0, param2=0, param3=loiter_radius_m, param4=float("nan"),
+            x=lat_i, y=lon_i, z=alt_m,
+        ),
+    ]
+
+
+def build_waypoint_items(plan: dict) -> list:
+    waypoints = plan.get("waypoints", [])
+    if not waypoints:
+        raise ValueError("waypoint_pattern plan has no waypoints")
+
+    items = []
+
+    first = waypoints[0]
+    first_lat_i = int(float(first["lat"]) * 1e7)
+    first_lon_i = int(float(first["lon"]) * 1e7)
+    first_alt_m = float(first.get("alt_m", LOITER_ALT_M))
+
+    # ArduPilot placeholder/home item
+    items.append(
+        dict(
+            command=mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+            frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            current=0, autocontinue=1,
+            param1=0, param2=0, param3=0, param4=0,
+            x=first_lat_i, y=first_lon_i, z=first_alt_m,
+        )
+    )
+
+    for i, wp in enumerate(waypoints, start=1):
+        lat_i = int(float(wp["lat"]) * 1e7)
+        lon_i = int(float(wp["lon"]) * 1e7)
+        alt_m = float(wp.get("alt_m", LOITER_ALT_M))
+
+        items.append(
+            dict(
+                command=mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+                frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                current=1 if i == 1 else 0,
+                autocontinue=1,
+                param1=0,
+                param2=30.0,
+                param3=0,
+                param4=float("nan"),
+                x=lat_i,
+                y=lon_i,
+                z=alt_m,
+            )
+        )
+
+    return items
+
+def mav_upload_plan(mav, plan: dict) -> None:
+    plan_type = plan.get("plan_type")
+
+    if plan_type == "single_loiter":
+        items = build_loiter_items(plan)
+    elif plan_type == "waypoint_pattern":
+        items = build_waypoint_items(plan)
+    else:
+        raise ValueError(f"Unknown plan_type: {plan_type}")
+
+    mav_upload_mission_items(mav, items)
 
 
 def mav_start_mission(mav) -> None:
@@ -211,55 +237,8 @@ def mav_loiter_in_place(mav) -> None:
     mav_set_mode(mav, "LOITER")
     log.info("pymavlink: LOITER mode commanded")
 
-#Old build loiter mission 
-# def build_loiter_mission(lat: float, lon: float, alt_m: float = LOITER_ALT_M) -> MissionPlan:
-#     """
-#     MissionItem is the only MAVSDK mechanism that exposes
-#     loiter_time_s and acceptance_radius_m for fixed-wing behavior.
 
-#     is_fly_through=False forces the autopilot to circle until loiter_time_s
-#     elapses before advancing. acceptance_radius_m is large so that the
-#     fixed-wing aircraft's turning radius does not prevent waypoint completion.
-#     """
-#     loiter_item = MissionItem(
-#         latitude_deg    = lat,
-#         longitude_deg   = lon,
-#         relative_altitude_m = alt_m,
-#         speed_m_s   = LOITER_SPEED_MS,
-#         is_fly_through  = False,
-#         gimbal_pitch_deg    =0.0,
-#         gimbal_yaw_deg  =0.0,
-#         camera_action   =  MissionItem.CameraAction.NONE,
-#         loiter_time_s   = 0,
-#         camera_photo_interval_s=0.0,
-#         acceptance_radius_m = LOITER_RADIUS_M,
-#         yaw_deg = nan,
-#         camera_photo_distance_m=0.0,
-#         vehicle_action = MissionItem.VehicleAction.NONE,
-#     )
-#     return MissionPlan([loiter_item])
-
-#Search phase helpers
-
-
-async def upload_and_start(mav, fix: dict, mission_status: dict) -> bool:
-    """Upload mission to fix coords and switch to AUTO. Returns success."""
-    try:
-        await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: mav_upload_loiter_mission(
-                mav, fix["lat"], fix["lon"], LOITER_ALT_M
-            ),
-        )
-        await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: mav_start_mission(mav),
-        )
-        return True
-    except Exception as exc:
-        log.error("Mission upload/start failed: %s", exc)
-        return False
-
+    
 async def run():
     #Connection
     drone = System()
@@ -289,12 +268,19 @@ async def run():
     
 
     autonomy_active = False
-    update_state("autonomy_active", autonomy_active)
+    
+    update_state("controller_status", {
+        **controller_status,
+        "autonomy_active": False,
+        "safety_hold": None,
+        "last_heartbeat_utc": None,
+    })
     # last_upload_time = 0.0
     # last_processed_fix_id = None
     last_telemetry_time = time.time()
     state_period_s = 1.0 / STATE_POLL_HZ
     last_state_check = 0.0
+    last_executed_plan_id = None
 
     #We need telemetry because minimum height is needed for autonomy and loiter height is set
     telemetry = {
@@ -337,35 +323,21 @@ async def run():
 
         state = load_state()
 
-        #New 
-        pending_action = state.get("pending_action", None)
+        controller_status = state.get("controller_status", {})
 
-        #For new search session
-        if pending_action == "new_search_session":
-            state = reset_search_phase(state)
-            update_state("search_phase", state["search_phase"])
-            update_state("decision", state["decision"])
-            update_state("pending_action", None)
-            log.info("New search session started from GCS command.")
-            await asyncio.sleep(state_period_s)
-            continue
+        update_state("controller_status", {
+            **controller_status,
+            "autonomy_active": autonomy_active,
+            "last_heartbeat_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
 
-            
-        state = update_elapsed(state)
-        update_state("search_phase", state.get("search_phase", {}))
-
-        best_fix = state.get("best_fix", {})
+        nav_state = load_nav_state()
+        active_plan = nav_state.get("active_plan", {})
 
         mission_status = state.get("mission_status", {})
-        decision = state.get("decision", {})
+        should_autonomy = state.get("autonomy_command", False)
+       
 
-        state, event = check_time_gates(state)
-        if event:
-            update_state("decision", state["decision"])
-
-        should_autonomy = state.get("autonomy_active", False)
-        
-        #END of NEW
         
         rtl_requested = state.get("rtl_requested", False)
 
@@ -387,7 +359,13 @@ async def run():
                 await drone.action.return_to_launch()
                 update_state("rtl_requested", False)
                 autonomy_active = False
-                update_state("autonomy_active", autonomy_active)
+                controller_status = load_state().get("controller_status", {})
+                update_state("controller_status", {
+                    **controller_status,
+                    "autonomy_active": False,
+                    "safety_hold": "rtl",
+                    "last_heartbeat_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                })
                 update_state("mission_status", {
                     **mission_status,
                     "current_mode": "RTL",
@@ -407,8 +385,13 @@ async def run():
             )
             if autonomy_active:
                 autonomy_active = False
-                update_state("autonomy_active", autonomy_active)
-                update_state("mission_status", {**mission_status, "current_mode": "Paused_TelemetryLoss"})
+                controller_status = load_state().get("controller_status", {})
+                update_state("controller_status", {
+                    **controller_status,
+                    "autonomy_active": False,
+                    "safety_hold": "telemetry_lost",
+                    "last_heartbeat_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                })
             await asyncio.sleep(state_period_s)
             continue
 
@@ -438,12 +421,13 @@ async def run():
                 log.info("Pilot Override detected. Pausing Autonomy (mode=%s)", flight_mode)
 
                 autonomy_active = False
-                update_state("autonomy_active", False)
-                update_state("mission_status", {
-                    **mission_status,
-                    "current_mode": "Paused_PilotOverride"
+                controller_status = load_state().get("controller_status", {})
+                update_state("controller_status", {
+                    **controller_status,
+                    "autonomy_active": False,
+                    "safety_hold": "pilot_override",
+                    "last_heartbeat_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 })
-
             await asyncio.sleep(state_period_s)
             continue
 
@@ -459,7 +443,11 @@ async def run():
         if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
             log.info("Aircraft is in RTL. Not re-enabling autonomy.")
             autonomy_active = False
-            update_state("autonomy_active", False)
+            controller_status = load_state().get("controller_status", {})
+            update_state("controller_status", {
+                **controller_status,
+                "autonomy_active": False,
+            })
             update_state("mission_status", {
                 **mission_status,
                 "current_mode": "RTL",
@@ -480,28 +468,38 @@ async def run():
                 continue
             log.info("Autonomy enabled")
             autonomy_active = True
-            update_state("autonomy_active", autonomy_active)
-            state = start_search_phase(state)
-            update_state("search_phase", state["search_phase"])
-            update_state("decision", state["decision"])
+            controller_status = load_state().get("controller_status", {})
+            update_state("controller_status", {
+                **controller_status,
+                "autonomy_active": True, 
+                
+            })
 
-            if mission_status.get("current_mode") != "Searching":
+            if mission_status.get("current_mode") != "Idle":
                 update_state("mission_status", {
                     **mission_status,
-                    "current_mode": "Searching",
+                    "current_mode": "Idle",
                 })
 
         elif not should_autonomy and autonomy_active:
             # Stopping Autonomy
             log.info("Autonomy disabled")
             autonomy_active = False
-            update_state("autonomy_active", autonomy_active)
+            controller_status = load_state().get("controller_status", {})
+            update_state("controller_status", {
+                **controller_status,
+                "autonomy_active": False, 
+                
+            })
             await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: mav_loiter_in_place(mav),
             )
 
-            update_state("mission_status", {"current_mode": "Idle"})
+            update_state("mission_status", {
+                **mission_status,
+                "current_mode": "Idle",
+            })
             await asyncio.sleep(state_period_s)
             continue
         
@@ -528,131 +526,61 @@ async def run():
             await asyncio.sleep(state_period_s)
             continue
 
-        
-        await asyncio.sleep(state_period_s)
+        plan_id = active_plan.get("plan_id")
+        plan_type = active_plan.get("plan_type")
+        plan_status = active_plan.get("status")
 
+        if (
+            plan_id is not None
+            and plan_status == "ready"
+            and plan_id != last_executed_plan_id
+        ):
+            log.info("New plan detected: id=%s type=%s", plan_id, plan_type)
 
-        # #TO make sure kmissions aren't uploaded too fast
-        # time_since_upload = time.time() - last_upload_time
-        # if time_since_upload < MIN_MISSION_INTERVAL:
-        #     log.debug(
-        #         "Rate limit: %.1f s since last upload (min %.1f s). Holding.",
-        #         time_since_upload, MIN_MISSION_INTERVAL,
-        #     )
-        #     await asyncio.sleep(state_period_s)
-        #     continue
-        
-        #Fallbacks if search window ends
-
-        if event == "SEARCH_TIMEOUT":
-            log.warning("Search window expired. Commanding RTL.")
             try:
-                await drone.action.return_to_launch()
-                autonomy_active = False
-                update_state("autonomy_active", autonomy_active)
+                # Upload mission
+                await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: mav_upload_plan(mav, active_plan),
+                )
+
+                # Start mission (AUTO mode)
+                await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: mav_start_mission(mav),
+                )
+
+                last_executed_plan_id = plan_id
+
+                # Mark plan as running
+                update_nav_state("active_plan", {
+                    **active_plan,
+                    "status": "running",
+                })
+
+                # Update mission status
                 update_state("mission_status", {
                     **mission_status,
-                    "current_mode": "RTL_SearchTimeout",
+                    "active_plan_id": plan_id,
+                    "current_mode": "Executing",
                 })
+
+                log.info("Plan %s uploaded and started", plan_id)
+
             except Exception as exc:
-                log.error("RTL on timeout failed: %s", exc)
-            await asyncio.sleep(state_period_s)
-            continue
+                log.error("Failed to execute plan %s: %s", plan_id, exc)
 
-        elif event == "FALLBACK_FIX":
-            log.warning(
-                "Flying to fallback fix  fix_id=%s lat=%.6f lon=%.6f conf=%.2f",
-                best_fix.get("fix_id"),
-                best_fix.get("lat"),
-                best_fix.get("lon"),
-                best_fix.get("confidence"),
-            )
+                update_nav_state("active_plan", {
+                    **active_plan,
+                    "status": "error",
+                })
 
-            success = await upload_and_start(mav, best_fix, mission_status)
-            if success:
                 update_state("mission_status", {
                     **mission_status,
-                    "current_mode": "Navigating_Fallback",
-                    "active_mission_fix_id": best_fix.get("fix_id"),
+                    "active_plan_id": plan_id,
+                    "current_mode": "PlanError",
                 })
-            await asyncio.sleep(state_period_s)
-            continue
 
-
-        # # mission_plan = build_loiter_mission(fix_lat, fix_lon)
-
-        # # try:
-        # #     await drone.mission.upload_mission(mission_plan)
-        # #     log.info("Mission uploaded. Setting start item to 0.")
-        # #     await drone.mission.set_current_mission_item(0)
-        # #     log.info("Starting mission.")
-        # #     await drone.mission.start_mission()
-        # # except Exception as exc:
-        # #     log.error("Mission upload or start failed: %s", exc)
-        # #     await asyncio.sleep(state_period_s)
-        # #     continue
-
-        # # #Update that fix is processed
-        # # last_upload_time      = time.time()
-        # # last_processed_fix_id = fix_id
-
-        # # update_state("mission_status", {
-        # #     "current_mode":          "Navigating",
-        # #     "active_target_fix_id":  fix_id,
-        # #     "last_processed_fix_id": last_processed_fix_id,
-        # #     "mission_count":         mission_status.get("mission_count", 0) + 1,
-        # # })
-
-        # try:
-        #     # Runs in a thread so it doesn't block the asyncio event loop
-        #     # while waiting for MISSION_REQUEST / MISSION_ACK messages.
-        #     await asyncio.get_event_loop().run_in_executor(
-        #         None,
-        #         lambda: mav_upload_loiter_mission(mav, fix_lat, fix_lon, LOITER_ALT_M),
-        #     )
-        #     await asyncio.get_event_loop().run_in_executor(
-        #         None,
-        #         lambda: mav_start_mission(mav),
-        #     )
-        # except Exception as exc:
-        #     log.error("Mission upload/start failed: %s", exc)
-        #     await asyncio.sleep(state_period_s)
-        #     continue
-
-        # last_upload_time      = time.time()
-        # last_processed_fix_id = fix_id
-
-        # update_state("mission_status", {
-        #     "current_mode":          "Navigating",
-        #     "active_target_fix_id":  fix_id,
-        #     "last_processed_fix_id": last_processed_fix_id,
-        #     "mission_count":         mission_status.get("mission_count", 0) + 1,
-        # })
-
-        # #Monitoring the mission progress
-        # async def watch_mission_progress(expected_fix_id):
-        #     async for progress in drone.mission.mission_progress():
-        #         log.info(
-        #             "Mission progress: %d / %d  (fix_id=%s)",
-        #             progress.current, progress.total, expected_fix_id,
-        #         )
-        #         if progress.current >= progress.total:
-        #             log.info(
-        #                 "Mission complete (fix_id=%s). Aircraft now loitering.",
-        #                 expected_fix_id,
-        #             )
-        #             current = load_state().get("mission_status", {})
-        #             #Only update if its still on the same fix
-        #             if current.get("active_target_fix_id") == expected_fix_id:
-        #                 update_state("mission_status", {
-        #                     **current,
-        #                     "current_mode": "Loitering",
-        #                 })
-        #             return
-
-        # asyncio.ensure_future(watch_mission_progress(fix_id))
-
-        
         await asyncio.sleep(state_period_s)
         continue
 

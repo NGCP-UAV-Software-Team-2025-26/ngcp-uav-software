@@ -26,7 +26,7 @@ CMD_NEW_SEARCH_SESSION = 31006
 ACK_TIMEOUT = 3
 
 #Target system/component to target mavlink listener directly (1,1)
-TARGET_SYSTEM    = 1
+TARGET_SYSTEM    = 200
 TARGET_COMPONENT = 191
 
 CMD_MAP = {
@@ -93,7 +93,7 @@ def main():
         print("ERROR: No heartbeat received. mavlink-router and upstream serial link.")
         return
 
-    print(f"MAVLink Heartbeat received from system={m.target_system} component={m.target_component}")
+    print(f"MAVLink Heartbeat detected (from system={hb.get_srcSystem()} component={hb.get_srcComponent()}). Link is active.")
 
     print("Waiting for telemetry...")
     msg = m.recv_match(type='SYS_STATUS', blocking=True, timeout=5)
@@ -103,9 +103,9 @@ def main():
     else:
         print("Telemetry stream confirmed")
 
-    # NEW: Update global targets based on the heartbeat
-    global TARGET_SYSTEM
-    TARGET_SYSTEM = m.target_system
+    # We DO NOT update global targets based on the heartbeat.
+    # The heartbeat is likely from the Pixhawk (sys 1), but we want to send 
+    # commands to the companion computer (TARGET_SYSTEM=200, TARGET_COMPONENT=191).
     print("Ground console ready.\n")
     print()
     print("Available commands:", ", ".join(CMD_MAP.keys()))
