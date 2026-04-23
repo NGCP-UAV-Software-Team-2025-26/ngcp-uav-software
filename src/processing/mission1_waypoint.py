@@ -13,6 +13,8 @@ from state.nav_state_utils import load_nav_state, update_nav_state
 ### JUST AS A NOTE, THIS WAYPOINT SYSTEM WILL ONLY WORK IF THE SEARCH AREA IS A **CONVEX** QUADRILATERAL. IT WILL NOT WORK FOR CONCAVE. 
 #######################################################################################################################################
 
+STANDBY_INTERVAL_S = 1.0    # Polling interval while waiting for autonomy_active (s)
+
 # MISSION 1 CONFIGURATION
 MAX_TURN_ANGLE_DEG = 35.0   # Max heading change at any waypoint (deg)
 WAYPOINT_RADIUS_M  = 20.0   # Capture radius: advance to next WP within this distance (m)
@@ -523,6 +525,17 @@ def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
 
 def run_mission_1():
     print("[MISSION 1] Starting …")
+
+    # ------------------------------------------------------------------
+    # Standby — wait until mission_state.json autonomy_active is True
+    # ------------------------------------------------------------------
+    print("[MISSION 1] Standby … waiting for autonomy_active …")
+    while True:
+        mission_state = load_state()
+        if mission_state.get("autonomy_active", False):
+            print("[MISSION 1] autonomy_active = True — proceeding.")
+            break
+        time.sleep(STANDBY_INTERVAL_S)
 
     mission_state = load_state()
     nav_state     = load_nav_state()
