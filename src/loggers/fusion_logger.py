@@ -101,62 +101,74 @@ def fuse(
     min_ground_speed_ft_s: float,
 ) -> list[dict]:
     
-    # For each Kraken record, find the nearest telemetry record by t_rx_ms.
+    # For each Telem record, find the nearest telemetry record by t_rx_ms.
     # Don't use if abs(dt_ms) > max_time_diff_ms.
     # Returns a list of fused records.
     
-    tel_timestamps = build_timestamp_index(tel_records)
+    # tel_timestamps = build_timestamp_index(tel_records)
     fused = []
+    kraken_timestamps = build_timestamp_index(kraken_records) if kraken_records else []
 
-    for k in kraken_records:
-        k_ts = k["t_rx_ms"]
-        idx  = find_nearest(tel_timestamps, k_ts)
-        t    = tel_records[idx]
+    for t in tel_records:
+        t_ts = t["t_rx_ms"]
+        
+        matched_k = None
+        dt_ms = None
 
-        dt_ms = t["t_rx_ms"] - k_ts
+        if kraken_timestamps:
+            idx = find_nearest(kraken_timestamps, t_ts)
+            candidate = kraken_records[idx]
+            candidate_dt_ms = t_ts - candidate["t_rx_ms"]
 
-              
+            confidence = candidate.get("confidence_0_1")
 
-       
-        if abs(dt_ms) > max_time_diff_ms:
-            continue
+            # keep Kraken only if it is close enough and confidence is good enough
+            if abs(candidate_dt_ms) <= max_time_diff_ms and confidence is not None:
+                matched_k = candidate
+                dt_ms = candidate_dt_ms
 
-        confidence    = k.get("confidence_0_1")
-        roll          = t.get("roll_deg")
-        ground_speed  = t.get("ground_speed_ft_s")
+        roll = t.get("roll_deg")
+        ground_speed = t.get("ground_speed_ft_s")
 
-        record = {
-            
-            "run_id":           k.get("run_id"),
-            "kraken_seq":       k.get("seq"),
-            "telemetry_seq":    t.get("seq"),
-            "t_rx_ms":          k_ts, #Kraken time is the fusion anchor
-            "dt_ms":            dt_ms,#Telemetry.t_rx_ms - kraken.t_rx_ms
-
-            
-            "doa_deg":          k.get("doa_deg"),
-            "confidence_0_1":   confidence,
-
-           
-            "lat_deg":          t.get("lat_deg"),
-            "lon_deg":          t.get("lon_deg"),
-            "altitude_rel_ft":  t.get("altitude_rel_ft"),
-            "yaw_deg":          t.get("yaw_deg"),
-            "pitch_deg":        t.get("pitch_deg"),
-            "roll_deg":         roll,
-            "ground_speed_ft_s": ground_speed,
-            "vel_north_m_s":    t.get("vel_north_m_s"),
-            "vel_east_m_s":     t.get("vel_east_m_s"),
-            "vel_down_m_s":     t.get("vel_down_m_s"),
-
-            
-            "usable_for_triangulation": is_usable(
-                confidence, roll, ground_speed, dt_ms,
+        usable = False
+        if matched_k is not None and dt_ms is not None:
+            usable = is_usable(
+                matched_k.get("confidence_0_1"),
+                roll,
+                ground_speed,
+                dt_ms,
                 max_time_diff_ms=max_time_diff_ms,
                 min_confidence=min_confidence,
                 max_roll_deg=max_roll_deg,
                 min_ground_speed_ft_s=min_ground_speed_ft_s,
-            ),
+            )
+
+        record = {
+            
+            "run_id":           t.get("run_id") or (matched_k.get("run_id") if matched_k else None),
+
+            "kraken_seq":       matched_k.get("seq") if matched_k else None,
+            "telemetry_seq":    t.get("seq"),
+            "t_rx_ms":          t_ts, #Telem time is the fusion anchor
+            "dt_ms":            dt_ms,#Telemetry.t_rx_ms - kraken.t_rx_ms
+
+            
+            "doa_deg": matched_k.get("doa_deg") if matched_k else None,
+            "confidence_0_1": matched_k.get("confidence_0_1") if matched_k else None,
+
+            "lat_deg": t.get("lat_deg"),
+            "lon_deg": t.get("lon_deg"),
+            "altitude_rel_ft": t.get("altitude_rel_ft"),
+            "yaw_deg": t.get("yaw_deg"),
+            "pitch_deg": t.get("pitch_deg"),
+            "roll_deg": roll,
+            "ground_speed_ft_s": ground_speed,
+            "vel_north_m_s": t.get("vel_north_m_s"),
+            "vel_east_m_s": t.get("vel_east_m_s"),
+            "vel_down_m_s": t.get("vel_down_m_s"),
+
+            
+            "usable_for_triangulation": usable,
             # "usable_for_triangulation": True,
         }
         fused.append(record)
@@ -230,10 +242,10 @@ def main() -> None:
             update_state("fusion_log", str(out_file))
 
         #Makes sure it exists first
-        if not kraken_file.exists():
-            print(f"[fusion_logger] Waiting: Kraken file does not exist yet: {kraken_file}")
-            time.sleep(IDLE_POLL_INTERVAL_S)
-            continue
+        if kraken_file.exists():
+            kraken_records = load_jsonl(kraken_file)
+        else:
+            kraken_records = []
 
         if not tel_file.exists():
             print(f"[fusion_logger] Waiting: Telemetry file does not exist yet: {tel_file}")
@@ -241,17 +253,18 @@ def main() -> None:
             continue
         # re-read both files completely on every cycle
         # JSONL files are append-only, loading them fresh each time is the simplest way to pick up newly appended records
-        kraken_records = load_jsonl(kraken_file)
+        
         tel_records    = load_jsonl(tel_file)
 
         # Sort telemetry by timestamp in case records arrive out of order
         tel_records.sort(key=lambda r: r["t_rx_ms"])
 
-        if not kraken_records or not tel_records:
-            # One of the files is present but still empty
-            print("[fusion_logger] Waiting: logs exist but no data yet")
+        if not tel_records:
+            print("[fusion_logger] Waiting: telemetry log exists but no data yet")
             time.sleep(ACTIVE_POLL_INTERVAL_S)
             continue
+
+        # kraken_records can be empty now
 
         fused = fuse(
             kraken_records,
@@ -263,13 +276,16 @@ def main() -> None:
         )
 
         n_usable    = sum(1 for r in fused if r["usable_for_triangulation"])
-        n_discarded = len(kraken_records) - len(fused)
+        n_with_kraken = sum(1 for r in fused if r["kraken_seq"] is not None)
+        n_tel_only = len(fused) - n_with_kraken
 
-        # print(f"  Kraken samples         : {len(kraken_records)}")
-        # print(f"  Discarded (dt too large): {n_discarded}")
-        # print(f"  Fused records          : {len(fused)}")
-        # print(f"  Usable for triangulation: {n_usable} / {len(fused)}")
-
+        print(
+            f"[fusion_logger] {time.strftime('%H:%M:%S')} — "
+            f"kraken={len(kraken_records)} | tel={len(tel_records)} | "
+            f"rows={len(fused)} | matched={n_with_kraken} | "
+            f"usable={n_usable} | tel_only={n_tel_only}"
+        )
+        
         if out_file is None or run_id is None:
             time.sleep(IDLE_POLL_INTERVAL_S)
             continue
@@ -279,12 +295,6 @@ def main() -> None:
             for record in fused:
                 f.write(json.dumps(record) + "\n")
 
-        
-        print(
-            f"[fusion_logger] {time.strftime('%H:%M:%S')} — "
-            f"kraken={len(kraken_records)} | tel={len(tel_records)} | "
-            f"fused={len(fused)} | usable={n_usable} | discarded(dt)={n_discarded}"
-        )
 
         #Meta to keep track of what parameters for fusion
         # updated each cycle
@@ -298,7 +308,8 @@ def main() -> None:
             "kraken_records_in":       len(kraken_records),
             "telemetry_records_in":    len(tel_records),
             "fused_records_out":       len(fused),
-            "discarded_dt_exceeded":   n_discarded,
+            "matched_kraken": n_with_kraken,
+            "telemetry_only": n_tel_only,
             "usable_for_triangulation": n_usable,
 
             "max_time_diff_ms":        args.max_time_diff_ms,
