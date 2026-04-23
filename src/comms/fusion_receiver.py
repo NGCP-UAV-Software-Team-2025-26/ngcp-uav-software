@@ -49,21 +49,21 @@ def main():
                 continue
             try:
                 header, payload = text.split(':', 1)
-                seq_byte   = int(header[1:3])
-                chunk_idx  = int(header[3:5])
-                total      = int(header[5:7])
+                seq_id   = int(header[1:5])
+                chunk_idx  = int(header[5:7])
+                total      = int(header[7:9])
             except ValueError:
                 continue
-            buf[seq_byte][chunk_idx] = payload
-            buf[seq_byte]['_total']  = total
+            buf[seq_id][chunk_idx] = payload
+            buf[seq_id]['_total']  = total
 
-            if all(i in buf[seq_byte] for i in range(total)):
-                raw = ''.join(buf[seq_byte][i] for i in range(total))
-                del buf[seq_byte]
+            if all(i in buf[seq_id] for i in range(total)):
+                raw = ''.join(buf[seq_id][i] for i in range(total))
+                del buf[seq_id]
 
                 # Prune any stale incomplete buffers
                 stale = [k for k in list(buf) if isinstance(k, int)
-                         and abs(k - seq_byte) > 10]
+                         and abs(k - seq_id) > 50]
                 for k in stale:
                     del buf[k]
 
@@ -83,7 +83,8 @@ def main():
 
                 count += 1
                 print(f"[bridge] {time.strftime('%H:%M:%S')} "
-                      f"seq={record.get('kraken_seq')} "
+                      f"telem_seq={record.get('telemetry_seq')} "
+                      f"kraken_seq={record.get('kraken_seq')} "
                       f"usable={record.get('usable_for_triangulation')} "
                       f"total={count}")
 

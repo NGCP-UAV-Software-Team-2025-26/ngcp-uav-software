@@ -33,7 +33,7 @@ def send_record(mav, record: dict, seq: int) -> None:
     total  = len(chunks)
 
     for idx, chunk in enumerate(chunks):
-        text = f"F{seq%100:02d}{idx:02d}{total:02d}:{chunk.decode()}"
+        text = f"F{seq%10000:04d}{idx:02d}{total:02d}:{chunk.decode()}"
         mav.mav.statustext_send(
             mavutil.mavlink.MAV_SEVERITY_INFO,
             text.encode().ljust(50, b'\x00')
@@ -91,13 +91,13 @@ def main():
             time.sleep(POLL_INTERVAL_S)
             continue
         new_records = sorted(
-            [r for r in records if r.get("kraken_seq", -1) > last_seq_sent],
-            key=lambda r: r.get("kraken_seq", 0)
+            [r for r in records if isinstance(r.get("telemetry_seq"), int) and r["telemetry_seq"] > last_seq_sent],
+            key=lambda r: r["telemetry_seq"]
         )
 
         for record in new_records:
-            send_record(mav, record, record["kraken_seq"])
-            last_seq_sent = record["kraken_seq"]
+            send_record(mav, record, record["telemetry_seq"])
+            last_seq_sent = record["telemetry_seq"]
             print(f"[fusion_sender] sent seq={last_seq_sent} "
                   f"usable={record.get('usable_for_triangulation')}")
 
