@@ -54,7 +54,7 @@ async def wait_connected(drone: System):
 
     async for state in drone.core.connection_state():
         if state.is_connected:
-            print("Connected to PX4")
+            print("Connected to Ardupilot")
             return
         
 async def wait_position_ok(drone: System):
