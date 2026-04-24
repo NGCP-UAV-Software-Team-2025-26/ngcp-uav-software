@@ -4,17 +4,10 @@
   "timestamp": 1776460633.9005466,
   "last_sender_sysid": 255,
   "last_sender_compid": 0,
-<<<<<<< Updated upstream
-  "kraken_log": "/home/lensaki/Projects/ngcp-uav-software/logs/kraken/doa_20260422_171634.jsonl",
-  "telemetry_log": "/home/lensaki/Projects/ngcp-uav-software/logs/telemetry/telemetry_20260422_171443_20260422_171529.jsonl",
-  "fusion_log": "/home/lensaki/Projects/ngcp-uav-software/logs/fusion/fusion_20260422_171634.jsonl",
-  "autonomy_active": true,
-=======
   "kraken_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/kraken/doa_20260422_191109.jsonl",
   "telemetry_log": null,
   "fusion_log": "/home/ngcp25/Projects/ngcp-uav-software/logs/fusion/fusion_20260417_140805.jsonl",
   "autonomy_active": false,
->>>>>>> Stashed changes
   "pending_action": null,
   "rtl_requested": false,
   "mission_status": {

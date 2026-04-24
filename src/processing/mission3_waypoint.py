@@ -3,12 +3,17 @@ mission3_waypoint.py — Real-time flight path waypoint system for fixed-wing UA
 Mission 3: Small Loiter Pattern
 """
 
-import json
 import math
 import os
 import time
 import zlib
 import struct
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from state.mission_state_utils import load_state, update_state
+from state.nav_state_utils import load_nav_state, update_nav_state
 
 # ─────────────────────────── CONFIGURABLE PARAMETERS ────────────────────────
 LOITER_RADIUS_FT    = 20      # Loiter circle radius written into active_plan.loiter_radius_ft (ft)
@@ -16,14 +21,8 @@ BORDER_CLEARANCE_FT = 50.0    # Circle must be at least this far from search bor
 LOITER_SAMPLE_PTS   = 30      # Number of points sampled around circle circumference for checks
 UPDATE_INTERVAL_S   = 0.1     # Guidance loop polling interval (s)
 GENERATE_IMAGE      = True    # Toggle PNG generation
-# ─────────────────────────────────────────────────────────────────────────────
 
-# ── File paths ────────────────────────────────────────────────────────────────
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_STATE_DIR         = os.path.join(_HERE, "..", "state")
-NAVIGATION_STATE   = os.path.join(_STATE_DIR, "navigation_state.json")
-MISSION_STATE      = os.path.join(_STATE_DIR, "mission_state.json")
-PNG_OUTPUT         = os.path.join(_HERE, "mission3_map.png")
+PNG_OUTPUT         = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mission3_map.png")
 
 # ── Geo helpers ───────────────────────────────────────────────────────────────
 FEET_PER_METER  = 3.28084
@@ -150,18 +149,6 @@ def _closest_valid_center(orig_lat, orig_lon, radius_ft, poly,
     lat = orig_lat + hi * (clat - orig_lat)
     lon = orig_lon + hi * (clon - orig_lon)
     return lat, lon
-
-
-# ── JSON I/O ──────────────────────────────────────────────────────────────────
-
-def _load(path: str) -> dict:
-    with open(path, "r") as f:
-        return json.load(f)
-
-
-def _save(path: str, data: dict):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
 
 
 # ── PNG generation (stdlib only: zlib + struct) ───────────────────────────────
@@ -314,13 +301,13 @@ def generate_png(poly, orig_clat, orig_clon, final_clat, final_clon,
 def _startup(nav: dict, mis: dict):
     """Apply mission-3 state to both JSON blobs (in-place) and save."""
 
-    # mission_state.json active plan fields
-    ap = mis.setdefault("active_plan", {})
-    ap["mission_phase"] = 3
-    ap["plan_id"]       = 3
-    ap["plan_type"]     = "Small Loiter Pattern"
-    ap["status"]        = "Loitering"
-    ap["next_plan"]     = "Manual Takeover"
+    update_state("mission_phase", 3)
+    update_state("plan_id",       3)
+    update_state("plan_type",     "Small Loiter Pattern")
+    update_state("status",        "Loitering")
+    update_state("next_plan",     "Manual Takeover")
+
+    mis = load_state()
 
     # Read telemetry from fusion_log
     fusion = mis.get("fusion_log", {})
@@ -347,17 +334,17 @@ def _startup(nav: dict, mis: dict):
     )
 
     # Update navigation_state active_plan
-    nav_ap = nav.setdefault("active_plan", {})
-    nav_ap["plan_id"]         = 3
-    nav_ap["plan_type"]       = "Small Loiter Pattern"
-    nav_ap["status"]          = "Loitering"
-    nav_ap["loiter_radius_ft"] = LOITER_RADIUS_FT
-    nav_ap["alt_ft"]          = alt_ft
-    nav_ap["next_plan"]       = "Manual Takeover"
-    nav_ap["waypoints"]       = [{"lat": final_lat, "lon": final_lon, "alt_ft": alt_ft}]
+    update_nav_state("active_plan", {
+        "plan_id":          3,
+        "plan_type":        "Small Loiter Pattern",
+        "status":           "Loitering",
+        "loiter_radius_ft": LOITER_RADIUS_FT,
+        "alt_ft":           alt_ft,
+        "next_plan":        "Manual Takeover",
+        "waypoints":        [{"lat": final_lat, "lon": final_lon, "alt_ft": alt_ft}],
+    })
 
-    _save(MISSION_STATE,    mis)
-    _save(NAVIGATION_STATE, nav)
+    nav = load_nav_state()
 
     print(f"[mission3] Startup complete. Circle center: ({final_lat:.6f}, {final_lon:.6f})")
     if (final_lat, final_lon) != (orig_lat, orig_lon):
@@ -370,7 +357,7 @@ def _startup(nav: dict, mis: dict):
                      LOITER_RADIUS_FT, plane_lat, plane_lon, plane_hdg,
                      target_lat, target_lon)
 
-    return mis, nav
+    return load_state(), load_nav_state()
 
 
 # ── Mission teardown ──────────────────────────────────────────────────────────
@@ -407,10 +394,11 @@ def _teardown(nav: dict, mis: dict):
     ap["waypoints"]        = None
     ap["next_plan"]        = None
 
-    # navigation_state.json → top-level next_plan
-    nav["next_plan"] = None
 
-    _save(NAVIGATION_STATE, nav)
+    update_nav_state("mra_refined_loiter_target", rlt)
+    update_nav_state("target_location",           tl)
+    update_nav_state("active_plan",               ap)
+    update_nav_state("next_plan",                 None)
     print("[mission3] Teardown complete. All loiter fields cleared.")
 
 
@@ -418,23 +406,19 @@ def _teardown(nav: dict, mis: dict):
 
 def main():
     print("[mission3] Loading state files …")
-    nav = _load(NAVIGATION_STATE)
-    mis = _load(MISSION_STATE)
+    nav = load_nav_state()
+    mis = load_state()
 
     mis, nav = _startup(nav, mis)
 
     print("[mission3] Entering guidance loop (polling autonomy_active) …")
     while True:
         time.sleep(UPDATE_INTERVAL_S)
-        try:
-            mis = _load(MISSION_STATE)
-        except (OSError, json.JSONDecodeError) as exc:
-            print(f"[mission3] WARN: could not read mission_state ({exc}); retrying …")
-            continue
+        mis = load_state()
 
         if not mis.get("autonomy_active", True):
             print("[mission3] autonomy_active → False. Initiating teardown …")
-            nav = _load(NAVIGATION_STATE)
+            nav = load_nav_state()
             _teardown(nav, mis)
             break
 
