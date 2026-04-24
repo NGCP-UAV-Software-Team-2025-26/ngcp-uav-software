@@ -16,6 +16,7 @@ LOITER_RADIUS_FT    = 250.0  # Loiter circle radius written into active_plan.loi
 BORDER_CLEARANCE_M  = 30.0   # Minimum distance circle edge must keep from search boundary (m)
 LOITER_SAMPLE_PTS   = 72     # Number of points sampled around circle circumference for checks
 UPDATE_INTERVAL_S   = 0.5    # Polling interval when waiting for target_location.valid (s)
+GENERATE_IMAGE      = True   # Toggle PNG generation
 
 EARTH_RADIUS_M = 6_371_000.0
 
@@ -209,6 +210,164 @@ def read_latest_telemetry(fusion_log_path):
 
 
 ###############################################################################
+# PNG generation (stdlib only — zlib + struct)
+###############################################################################
+
+def _png_write(path, width, height, pixels):
+    """Write an RGB bytearray (width*height*3) as a PNG using stdlib only."""
+    import zlib, struct
+
+    def chunk(tag, data):
+        c = zlib.crc32(tag + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", c)
+
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)  # filter byte
+        raw.extend(pixels[y * width * 3:(y + 1) * width * 3])
+
+    ihdr  = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    idat  = zlib.compress(bytes(raw), 9)
+    data  = (b"\x89PNG\r\n\x1a\n"
+             + chunk(b"IHDR", ihdr)
+             + chunk(b"IDAT", idat)
+             + chunk(b"IEND", b""))
+    with open(path, "wb") as f:
+        f.write(data)
+
+
+def _px(pixels, width, x, y, r, g, b):
+    """Set one pixel (clipped)."""
+    if 0 <= x < width and 0 <= y < len(pixels) // (width * 3):
+        i = (y * width + x) * 3
+        pixels[i], pixels[i+1], pixels[i+2] = r, g, b
+
+
+def _line(pixels, width, height, x0, y0, x1, y1, r, g, b):
+    """Bresenham line."""
+    x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
+    dx, dy = abs(x1-x0), abs(y1-y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+    while True:
+        _px(pixels, width, x0, y0, r, g, b)
+        if x0 == x1 and y0 == y1:
+            break
+        e2 = 2 * err
+        if e2 > -dy: err -= dy; x0 += sx
+        if e2 <  dx: err += dx; y0 += sy
+
+
+def _circle_outline(pixels, width, height, cx, cy, rad, r, g, b, dashed=False):
+    """Draw a circle outline, optionally dashed."""
+    n = max(360, int(2 * math.pi * rad))
+    for i in range(n):
+        if dashed and (i // 6) % 2 == 1:
+            continue
+        a = 2 * math.pi * i / n
+        _px(pixels, width, int(cx + rad*math.cos(a)), int(cy + rad*math.sin(a)), r, g, b)
+
+
+def _filled_circle(pixels, width, height, cx, cy, rad, r, g, b):
+    cx, cy, rad = int(cx), int(cy), int(rad)
+    for dy in range(-rad, rad+1):
+        for dx in range(-rad, rad+1):
+            if dx*dx + dy*dy <= rad*rad:
+                _px(pixels, width, cx+dx, cy+dy, r, g, b)
+
+
+def _arrow(pixels, width, height, x0, y0, x1, y1, r, g, b):
+    """Line with a small arrowhead at (x1,y1)."""
+    _line(pixels, width, height, x0, y0, x1, y1, r, g, b)
+    ang = math.atan2(y1-y0, x1-x0)
+    for da in (2.5, -2.5):
+        ax = x1 - 10 * math.cos(ang + da)
+        ay = y1 - 10 * math.sin(ang + da)
+        _line(pixels, width, height, x1, y1, int(ax), int(ay), r, g, b)
+
+
+def generate_image(search_xy, orig_centre, new_centre, radius_m,
+                   was_moved, loiter_radius_ft, alt_ft, o_lat, o_lon):
+    """
+    Render the mission 2 map PNG.
+
+    Elements:
+      Yellow polygon  — search area boundary
+      Dashed grey     — original loiter circle (only when nudged)
+      Solid cyan      — final loiter circle
+      Orange dot      — original centre (only when nudged)
+      Green dot       — final (possibly nudged) centre
+    """
+    W = H = 800
+    PAD = 60
+
+    # ---- world → screen transform ----------------------------------------
+    all_x = [p[0] for p in search_xy]
+    all_y = [p[1] for p in search_xy]
+    # Include both circle centres and circumference extents
+    for cx, cy in [(orig_centre[0], orig_centre[1]),
+                   (new_centre[0],  new_centre[1])]:
+        all_x += [cx - radius_m, cx + radius_m]
+        all_y += [cy - radius_m, cy + radius_m]
+
+    min_x, max_x = min(all_x), max(all_x)
+    min_y, max_y = min(all_y), max(all_y)
+    span = max(max_x - min_x, max_y - min_y, 1.0)
+    scale = (W - 2*PAD) / span
+
+    def s(x, y):   # local metres → screen pixels (y flipped)
+        return (int(PAD + (x - min_x) * scale),
+                int(H - PAD - (y - min_y) * scale))
+
+    pixels = bytearray(W * H * 3)  # black background
+
+    # ---- search area boundary (yellow) -----------------------------------
+    n = len(search_xy)
+    for i in range(n):
+        x0, y0 = s(*search_xy[i])
+        x1, y1 = s(*search_xy[(i+1) % n])
+        _line(pixels, W, H, x0, y0, x1, y1, 255, 220, 0)
+
+    # ---- original circle dashed grey (only when nudged) ------------------
+    if was_moved:
+        ocx, ocy = s(*orig_centre)
+        r_px = int(radius_m * scale)
+        _circle_outline(pixels, W, H, ocx, ocy, r_px, 130, 130, 130, dashed=True)
+        _filled_circle(pixels, W, H, ocx, ocy, 5, 255, 140, 0)   # orange dot
+
+    # ---- final loiter circle (cyan) --------------------------------------
+    ncx, ncy = s(*new_centre)
+    r_px = int(radius_m * scale)
+    _circle_outline(pixels, W, H, ncx, ncy, r_px, 0, 220, 220)
+
+    # ---- flight direction arrow along circle top -------------------------
+    ang0 = -math.pi / 2                     # top of circle
+    ang1 = ang0 + math.radians(30)
+    ax0  = int(ncx + r_px * math.cos(ang0))
+    ay0  = int(ncy + r_px * math.sin(ang0))
+    ax1  = int(ncx + r_px * math.cos(ang1))
+    ay1  = int(ncy + r_px * math.sin(ang1))
+    _arrow(pixels, W, H, ax0, ay0, ax1, ay1, 0, 220, 220)
+
+    # ---- final centre dot (green) ----------------------------------------
+    _filled_circle(pixels, W, H, ncx, ncy, 6, 0, 255, 80)
+
+    # ---- info text (burn pixels manually — keep stdlib only) -------------
+    # Skip font rendering; embed metadata in filename comment instead.
+    # A simple scale-bar is drawn at bottom-left.
+    bar_m   = 100                            # 100 m scale bar
+    bar_px  = int(bar_m * scale)
+    bx0, by = PAD, H - 20
+    _line(pixels, W, H, bx0, by, bx0 + bar_px, by, 200, 200, 200)
+    _line(pixels, W, H, bx0, by-4, bx0, by+4, 200, 200, 200)
+    _line(pixels, W, H, bx0+bar_px, by-4, bx0+bar_px, by+4, 200, 200, 200)
+
+    out = Path(__file__).resolve().parent / "mission2_map.png"
+    _png_write(str(out), W, H, pixels)
+    print(f"[IMAGE] Saved → {out}")
+
+###############################################################################
 # Main
 ###############################################################################
 
@@ -246,8 +405,8 @@ def run_mission_2():
     # ------------------------------------------------------------------
     nav_state  = load_state_nav()
     raw_search = nav_state.get("search_area", [])
-    if len(raw_search) != 4:
-        raise ValueError(f"search_area must have 4 entries, got {len(raw_search)}")
+    if not (3 <= len(raw_search) <= 6):
+        raise ValueError(f"search_area must have 3–6 entries, got {len(raw_search)}")
 
     search_coords = []
     for entry in raw_search:
@@ -315,6 +474,24 @@ def run_mission_2():
               f"({new_lat:.7f}, {new_lon:.7f})")
 
     print(f"[LOITER] Radius: {loiter_radius_ft} ft  |  alt: {alt_ft} ft")
+
+    if GENERATE_IMAGE:
+        try:
+            generate_image(
+                search_xy    = search_xy,
+                orig_centre  = (orig_cx, orig_cy),
+                new_centre   = (new_cx,  new_cy),
+                radius_m     = loiter_radius_m,
+                was_moved    = was_moved,
+                loiter_radius_ft = loiter_radius_ft,
+                alt_ft       = alt_ft,
+                o_lat        = o_lat,
+                o_lon        = o_lon,
+            )
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            print("[WARN] PNG generation failed — continuing.")
 
     # ------------------------------------------------------------------
     # Write waypoint (single centre point) to active_plan.waypoints
