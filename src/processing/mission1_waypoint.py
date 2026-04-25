@@ -176,11 +176,6 @@ def convex_hull(pts):
 
 
 def fit_oriented_ellipse(hull_xy):
-    """
-    PCA orientation + min-projection inscribed sizing.
-    Semi-axes = minimum projection of hull points onto each axis,
-    guaranteeing the ellipse is fully inside the hull.
-    """
     cx, cy = centroid(hull_xy)
     dx = [p[0]-cx for p in hull_xy]
     dy = [p[1]-cy for p in hull_xy]
@@ -193,19 +188,68 @@ def fit_oriented_ellipse(hull_xy):
     l1    = trace/2 + math.sqrt(max(0.0, (trace/2)**2 - det))
     angle = math.atan2(l1 - cxx, cxy) if abs(cxy) > 1e-9 else (0.0 if cxx >= cyy else math.pi/2)
     cos_a, sin_a = math.cos(angle), math.sin(angle)
+    # Bounding extent in PCA frame — ellipse starts larger than hull, then gets shrunk
     u_coords = [abs( (p[0]-cx)*cos_a + (p[1]-cy)*sin_a) for p in hull_xy]
     v_coords = [abs(-(p[0]-cx)*sin_a + (p[1]-cy)*cos_a) for p in hull_xy]
-    a = min(u_coords) if u_coords else 1.0
-    b = min(v_coords) if v_coords else 1.0
+    a = max(u_coords) if u_coords else 1.0
+    b = max(v_coords) if v_coords else 1.0
     if a < b:
         a, b = b, a
         angle = angle + math.pi/2
+
+    # # Scale down uniformly until ellipse is fully inside hull (all 360 sample pts inside)
+    # def ellipse_max_overshoot(s):
+    #     """Returns how far outside the hull the scaled ellipse reaches (0 = fully inside)."""
+    #     outside = 0.0
+    #     for i in range(360):
+    #         t  = 2*math.pi*i/360
+    #         lx = s*a*math.cos(t); ly = s*b*math.sin(t)
+    #         px = cx + lx*cos_a - ly*sin_a
+    #         py = cy + lx*sin_a + ly*cos_a
+    #         # Point is outside hull if it is beyond every hull edge (negative inward dist)
+    #         d = min_dist_to_poly_edges(px, py, hull_xy)
+    #         # Check if point is inside hull using winding — approximate via signed clearance
+    #         # We use: if the point's nearest-edge distance is positive and point is outside, flag it.
+    #         # Simpler: check if point projects outside any hull edge (cross product sign).
+    #         nh = len(hull_xy)
+    #         inside = True
+    #         for j in range(nh):
+    #             ax, ay = hull_xy[j]; bx, by = hull_xy[(j+1)%nh]
+    #             cross = (bx-ax)*(py-ay) - (by-ay)*(px-ax)
+    #             if cross > 0:   # CW hull: outside if cross > 0
+    #                 inside = False
+    #                 outside = max(outside, cross / (math.hypot(bx-ax, by-ay) + 1e-12))
+    #                 break
+    #     return outside
+    # lo, hi = 0.0, 1.0
+    # for _ in range(52):
+    #     mid = (lo + hi) / 2
+    #     if ellipse_max_overshoot(mid) == 0.0: lo = mid
+    #     else:                                  hi = mid
+    # a, b = lo*a, lo*b
     return cx, cy, a, b, angle
 
 
 def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
-    """Binary-search scale s so all ellipse points are >= BORDER_CLEARANCE_M from hull edges."""
+    """
+    Binary-search scale s so the ellipse is fully inside the hull
+    AND every point is >= BORDER_CLEARANCE_M from every hull edge.
+    """
+    print(f"[ELLIPSE] Raw inscribed axes: a={a:.1f} m, b={b:.1f} m, clearance={BORDER_CLEARANCE_M:.1f} m")
     cos_a, sin_a = math.cos(angle), math.sin(angle)
+    
+    nh = len(hull_xy)
+
+    def point_inside_hull(px, py):
+        """True if point is inside or on the convex hull (works for CW or CCW)."""
+        signs = []
+        for j in range(nh):
+            ax, ay = hull_xy[j]
+            bx, by = hull_xy[(j+1) % nh]
+            cross = (bx-ax)*(py-ay) - (by-ay)*(px-ax)
+            signs.append(cross)
+        return all(s <= 0 for s in signs) or all(s >= 0 for s in signs)
+
     def min_clearance(s):
         min_d = float('inf')
         for i in range(720):
@@ -213,9 +257,12 @@ def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
             lx = s*a*math.cos(t); ly = s*b*math.sin(t)
             px = cx + lx*cos_a - ly*sin_a
             py = cy + lx*sin_a + ly*cos_a
+            if not point_inside_hull(px, py):
+                return -1.0          # outside hull — fail immediately
             d  = min_dist_to_poly_edges(px, py, hull_xy)
             if d < min_d: min_d = d
         return min_d
+    
     if min_clearance(1.0) >= BORDER_CLEARANCE_M:
         return a, b
     lo, hi = 0.0, 1.0
@@ -223,6 +270,7 @@ def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
         mid = (lo + hi) / 2
         if min_clearance(mid) >= BORDER_CLEARANCE_M: lo = mid
         else:                                         hi = mid
+    print(f"[ELLIPSE] Shrunk axes: a={lo*a:.1f} m, b={lo*b:.1f} m")
     return lo*a, lo*b
 
 
@@ -246,6 +294,7 @@ def sample_ellipse_waypoints(cx, cy, a, b, angle):
                   for t in (i*dt for i in range(3600)))
     max_count = MAXIMUM_WAYPOINTS if MAXIMUM_WAYPOINTS > 0 else 50
     base_sp = arc_len / max_count
+    print(f"[ELLIPSE] arc_len={arc_len:.1f} m, base_sp={base_sp:.1f} m, targeting {max_count} WPs")
     pts, accum, t = [], 0.0, 0.0
     while t < 2*math.pi:
         kappa   = ellipse_curvature(a, b, t)
@@ -574,7 +623,7 @@ def run_mission_1():
 
     update_nav_state("next_plan", 2)
 
-    print("[STATE] active_plan → plan_id=1, plan_type='Diamond Pattern', status='searching'")
+    print("[STATE] active_plan → plan_id=1, plan_type='Ellipse Pattern', status='searching'")
     print("[STATE] next_plan   → 2")
 
     # Write cruise altitude into the nav state so mission 2+ can read it
@@ -616,7 +665,7 @@ def run_mission_1():
 
     if not waypoints_ll:
        raise RuntimeError("[MISSION 1] No waypoints generated — check build_ellipse_path output.")
-    current_wp_idx = max(0, min(current_wp_idx, len(waypoints_ll) - 1))
+    current_wp_idx = closest_wp_index(plane_lat, plane_lon, waypoints_ll)
     print(f"[NAV] Plane at ({plane_lat:.6f}, {plane_lon:.6f}) "
           f"→ starting on WP{current_wp_idx}")
 
