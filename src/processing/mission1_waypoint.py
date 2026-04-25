@@ -16,9 +16,19 @@ from state.nav_state_utils import load_nav_state, update_nav_state
 STANDBY_INTERVAL_S = 1.0    # Polling interval while waiting for autonomy_active (s)
 
 # MISSION 1 CONFIGURATION
-MAX_TURN_ANGLE_DEG = 35.0   # Max heading change at any waypoint (deg)
-WAYPOINT_RADIUS_M  = 20.0   # Capture radius: advance to next WP within this distance (m)
-BORDER_CLEARANCE_M = 50.0   # Diamond corners must be at least this far from search border (m)    ###################### Adjust this as necessary
+TURN_RADIUS_FT          = 200.0  # UAV minimum safe turn radius (ft)
+BORDER_CLEARANCE_FT     = 50.0  # Minimum clearance from boundary (ft)  (# Diamond corners must be at least this far from search border (ft)    ###################### Adjust this as necessary)
+WAYPOINT_RADIUS_FT      = 20.0   # Waypoint capture radius (ft)  ~20 m (# Capture radius: advance to next WP within this distance (ft))
+STRAIGHT_SPACING_FACTOR = 5.0    # Waypoint spacing on straights = factor × R
+CURVATURE_SPACING_FACTOR= 0.5    # Waypoint spacing on tight curves = factor × R
+CURVATURE_SENSITIVITY   = 2.0    # Higher = denser waypoints near turns
+MAXIMUM_WAYPOINTS       = 20     # Hard cap on waypoints written to JSON (0 = no limit)
+
+FT_TO_M              = 0.3048
+TURN_RADIUS_M        = TURN_RADIUS_FT        * FT_TO_M
+BORDER_CLEARANCE_M   = BORDER_CLEARANCE_FT   * FT_TO_M
+WAYPOINT_RADIUS_M    = WAYPOINT_RADIUS_FT    * FT_TO_M
+
 L1_DISTANCE_M      = 30.0   # L1 guidance lookahead distance (m)
 UPDATE_INTERVAL_S  = 0.1    # Guidance loop polling interval (s)
 GENERATE_IMAGE     = True   # Toggle PNG map generation (True / False)
@@ -144,140 +154,104 @@ def shrink_vertex_to_clearance(cx, cy, vx, vy, poly, clearance_m):
     return cx + lo*dx, cy + lo*dy
 
 
-# --------------------------------------------------------------
-# Corner rounding: entry / apex / exit per shrunk diamond vertex
-# --------------------------------------------------------------
+def convex_hull(pts):
+    """Graham scan → clockwise-ordered convex hull."""
+    pts = sorted(set(pts))
+    if len(pts) <= 1: return pts
+    def cross(o, a, b):
+        return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0: lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0: upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
 
-def make_corner_waypoints(prev_v, curr_v, next_v):
-    """
-    Given three consecutive shrunk-diamond vertices, compute the three
-    waypoints that round the corner at curr_v:
+def fit_oriented_ellipse(hull_xy):
+    """PCA on hull points → (cx, cy, semi_major, semi_minor, angle_rad)."""
+    cx, cy = centroid(hull_xy)
+    dx = [p[0]-cx for p in hull_xy]
+    dy = [p[1]-cy for p in hull_xy]
+    n  = len(hull_xy)
+    cxx = sum(x*x for x in dx) / n
+    cxy = sum(dx[i]*dy[i] for i in range(n)) / n
+    cyy = sum(y*y for y in dy) / n
+    trace = cxx + cyy
+    det   = cxx*cyy - cxy*cxy
+    l1    = trace/2 + math.sqrt(max(0, (trace/2)**2 - det))
+    l2    = trace/2 - math.sqrt(max(0, (trace/2)**2 - det))
+    angle = math.atan2(l1 - cxx, cxy) if abs(cxy) > 1e-9 else (0 if cxx >= cyy else math.pi/2)
+    a     = math.sqrt(max(l1, 0)) * 2
+    b     = math.sqrt(max(l2, 0)) * 2
+    if b < TURN_RADIUS_M: b = TURN_RADIUS_M
+    return cx, cy, a, b, angle
 
-        entry  — on the incoming leg, set back from curr_v
-        apex   — midpoint between entry and exit (crown of the arc)
-        exit   — on the outgoing leg, set back from curr_v
+def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
+    """Binary-search scale s so all ellipse points are >= BORDER_CLEARANCE_M from hull edges."""
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    def min_clearance(s):
+        pts = []
+        for i in range(360):
+            t  = math.radians(i)
+            lx = s*a*math.cos(t); ly = s*b*math.sin(t)
+            pts.append((cx + lx*cos_a - ly*sin_a, cy + lx*sin_a + ly*cos_a))
+        return min(min_dist_to_poly_edges(px, py, hull_xy) for px, py in pts)
+    lo, hi = 0.0, 1.0
+    for _ in range(48):
+        mid = (lo + hi) / 2
+        if min_clearance(mid) >= BORDER_CLEARANCE_M: lo = mid
+        else:                                         hi = mid
+    return lo*a, lo*b
 
-    The set-back is chosen so the heading change from  prev→entry  to
-    entry→apex  does not exceed MAX_TURN_ANGLE_DEG.  If the full turn is
-    already within the limit, all three collapse to curr_v (no rounding).
+def ellipse_curvature(a, b, t):
+    """κ(t) of ellipse at parameter t."""
+    denom = (b*b*math.cos(t)**2 + a*a*math.sin(t)**2) ** 1.5
+    return (a*b) / denom if denom > 1e-12 else 0.0
 
-    The set-back distance scales with WAYPOINT_RADIUS_M so that shrinking
-    the diamond automatically shrinks the rounding geometry.
-    """
-    in_dx  = curr_v[0] - prev_v[0]
-    in_dy  = curr_v[1] - prev_v[1]
-    out_dx = next_v[0] - curr_v[0]
-    out_dy = next_v[1] - curr_v[1]
+def sample_ellipse_waypoints(cx, cy, a, b, angle):
+    """Curvature-aware adaptive sampling → [(x,y), ...] local frame."""
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    min_sp = CURVATURE_SPACING_FACTOR * TURN_RADIUS_M
+    max_sp = STRAIGHT_SPACING_FACTOR  * TURN_RADIUS_M
+    pts, accum, t = [], 0.0, 0.0
+    dt = 2*math.pi / 3600
+    while t < 2*math.pi:
+        kappa   = ellipse_curvature(a, b, t)
+        spacing = max(min_sp, min(max_sp, max_sp / (1 + CURVATURE_SENSITIVITY*kappa*TURN_RADIUS_M)))
+        dx_dt   = -a*math.sin(t); dy_dt = b*math.cos(t)
+        ds      = math.hypot(dx_dt, dy_dt) * dt
+        accum  += ds
+        if accum >= spacing:
+            lx = a*math.cos(t); ly = b*math.sin(t)
+            pts.append((cx + lx*cos_a - ly*sin_a, cy + lx*sin_a + ly*cos_a))
+            accum = 0.0
+        t += dt
+    return pts
 
-    in_len  = math.hypot(in_dx,  in_dy)
-    out_len = math.hypot(out_dx, out_dy)
+def downsample_waypoints(wp_xy, max_count):
+    """Evenly subsample wp_xy to at most max_count points, preserving order and closure."""
+    n = len(wp_xy)
+    if max_count <= 0 or n <= max_count:
+        return wp_xy
+    indices = [round(i * n / max_count) % n for i in range(max_count)]
+    return [wp_xy[i] for i in indices]
 
-    if in_len < 1e-9 or out_len < 1e-9:
-        return curr_v, curr_v, curr_v
-
-    in_ang  = math.degrees(math.atan2(in_dy,  in_dx))
-    out_ang = math.degrees(math.atan2(out_dy, out_dx))
-    turn    = normalize_angle(out_ang - in_ang)
-
-    if abs(turn) <= MAX_TURN_ANGLE_DEG:
-        # Turn is gentle enough — use the vertex itself as the single waypoint
-        return curr_v, curr_v, curr_v
-
-    # Set-back distance: use WAYPOINT_RADIUS_M as the rounding radius.
-    # For a turn of |turn| degrees the set-back along each leg is:
-    #   set_back = radius / tan(|turn|/2)
-    half_turn_rad = math.radians(abs(turn) / 2.0)
-    set_back = WAYPOINT_RADIUS_M / math.tan(half_turn_rad) if half_turn_rad > 1e-6 else 0.0
-
-    # Clamp so we never overshoot the midpoint of the incoming/outgoing leg
-    set_back = min(set_back, in_len * 0.45, out_len * 0.45)
-
-    # Entry: walk set_back metres back along the incoming leg from curr_v
-    entry = (curr_v[0] - (in_dx / in_len) * set_back,
-             curr_v[1] - (in_dy / in_len) * set_back)
-
-    # Exit: walk set_back metres forward along the outgoing leg from curr_v
-    exit_ = (curr_v[0] + (out_dx / out_len) * set_back,
-             curr_v[1] + (out_dy / out_len) * set_back)
-
-    # Apex: geometric midpoint of entry and exit
-    apex  = ((entry[0] + exit_[0]) / 2.0,
-             (entry[1] + exit_[1]) / 2.0)
-
-    return entry, apex, exit_
-
-
-# ---------------------
-# Full diamond pipeline
-# ---------------------
-
-def build_diamond(search_coords):
-    """
-    Step 1  Convert 4 search-area corners to local-metre frame.
-    Step 2  Sort corners clockwise.
-    Step 3  Midpoint of each edge → raw diamond (4 vertices ON the border).
-    Step 4  Shrink each raw vertex inward along centroid→vertex ray until
-            its distance to every search-area edge >= BORDER_CLEARANCE_M.
-    Step 5  Round each shrunk vertex with entry/apex/exit waypoints so the
-            heading change never exceeds MAX_TURN_ANGLE_DEG.
-
-    Returns
-    -------
-    waypoints_ll   [(lat,lon)]          ordered flight sequence (clockwise)
-    search_xy      [(x,y)]             search area corners, local m, clockwise
-    raw_diam_xy    [(x,y)]             raw diamond (step 3) — on the border
-    shrunk_diam_xy [(x,y)]             shrunk diamond (step 4) — inside border
-    wp_xy          [(x,y)]             waypoints, local m (same order as waypoints_ll)
-    corner_triples [((x,y),(x,y),(x,y))] (entry, apex, exit) per corner
-    o_lat, o_lon   float               local frame origin
-    """
-    o_lat = sum(p[0] for p in search_coords) / 4
-    o_lon = sum(p[1] for p in search_coords) / 4
-
+def build_ellipse_path(search_coords):
+    n = len(search_coords)
+    if not (3 <= n <= 6):
+        raise ValueError(f"search_area must have 3–6 entries, got {n}")
+    o_lat = sum(p[0] for p in search_coords) / n
+    o_lon = sum(p[1] for p in search_coords) / n
     local_pts = [to_local(lat, lon, o_lat, o_lon) for lat, lon in search_coords]
-    search_xy = sort_clockwise(local_pts)
-
-    # Step 3 — edge midpoints, these sit exactly on the search-area boundary
-    n = len(search_xy)
-    raw_diam_xy = [
-        ((search_xy[i][0] + search_xy[(i+1)%n][0]) / 2.0,
-         (search_xy[i][1] + search_xy[(i+1)%n][1]) / 2.0)
-        for i in range(n)
-    ]
-
-    # Step 4 — shrink each vertex inward to BORDER_CLEARANCE_M from the boundary
-    dc_x, dc_y = centroid(raw_diam_xy)
-    shrunk_diam_xy = [
-        shrink_vertex_to_clearance(dc_x, dc_y, vx, vy, search_xy, BORDER_CLEARANCE_M)
-        for vx, vy in raw_diam_xy
-    ]
-
-    # Step 5 — rounded corners
-    nd = len(shrunk_diam_xy)
-    corner_triples = [
-        make_corner_waypoints(
-            shrunk_diam_xy[(i-1) % nd],
-            shrunk_diam_xy[i],
-            shrunk_diam_xy[(i+1) % nd],
-        )
-        for i in range(nd)
-    ]
-
-    # Flatten into flight sequence, collapsing identical triples to one point
-    wp_xy = []
-    for entry, apex, exit_ in corner_triples:
-        if entry == apex == exit_:
-            wp_xy.append(apex)
-        else:
-            wp_xy.append(entry)
-            wp_xy.append(apex)
-            wp_xy.append(exit_)
-
+    hull_xy   = convex_hull(local_pts)
+    cx, cy, a, b, angle = fit_oriented_ellipse(hull_xy)
+    a_s, b_s  = shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy)
+    wp_xy     = sample_ellipse_waypoints(cx, cy, a_s, b_s, angle)
     waypoints_ll = [from_local(x, y, o_lat, o_lon) for x, y in wp_xy]
-
-    return (waypoints_ll, search_xy, raw_diam_xy, shrunk_diam_xy,
-            wp_xy, corner_triples, o_lat, o_lon)
-
+    ellipse_params = (cx, cy, a, b, a_s, b_s, angle)
+    return waypoints_ll, hull_xy, ellipse_params, wp_xy, o_lat, o_lon
 
 # -------------------------------------------------
 # Fusion-log reader — reads last line of JSONL file
@@ -369,9 +343,10 @@ def _write_png(filename, width, height, pixels):
         f.write(data)
 
 
-def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
-                       corner_triples, plane_lat, plane_lon, start_wp_idx,
+def generate_map_image(hull_xy, ellipse_params, wp_xy,
+                       plane_lat, plane_lon, start_wp_idx,
                        o_lat, o_lon, filename="mission1_map.png"):
+    cx, cy, a_raw, b_raw, a_s, b_s, angle = ellipse_params
     """
     Renders:
       • Search-area quadrilateral border        (dim yellow)
@@ -387,7 +362,7 @@ def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
 
     plane_x, plane_y = to_local(plane_lat, plane_lon, o_lat, o_lon)
 
-    all_xy = list(search_xy) + list(shrunk_diam_xy) + list(wp_xy) + [(plane_x, plane_y)]
+    all_xy = list(hull_xy) + list(wp_xy) + [(plane_x, plane_y)]
     min_x = min(p[0] for p in all_xy)
     max_x = max(p[0] for p in all_xy)
     min_y = min(p[1] for p in all_xy)
@@ -470,51 +445,27 @@ def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
 
     # --- draw layers (back to front) ---
 
-    # Search-area border
-    n = len(search_xy)
-    for i in range(n):
-        ax, ay = to_px(*search_xy[i])
-        bx, by = to_px(*search_xy[(i+1)%n])
-        draw_line(ax, ay, bx, by, (160, 150, 50), 1)
+    # Hull border (yellow)
+    nh = len(hull_xy)
+    for i in range(nh):
+        draw_line(*to_px(*hull_xy[i]), *to_px(*hull_xy[(i+1)%nh]), (160,150,50), 1)
 
-    # Raw diamond (dashed grey) — shows where midpoints fall before shrinking
-    draw_dashed_poly(raw_diam_xy, (80, 80, 90))
+    # Raw fitted ellipse (dashed grey)
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    def ellipse_px(aa, bb, steps=180):
+        out = []
+        for i in range(steps):
+            t = 2*math.pi*i/steps
+            lx=aa*math.cos(t); ly=bb*math.sin(t)
+            out.append(to_px(cx+lx*cos_a-ly*sin_a, cy+lx*sin_a+ly*cos_a))
+        return out
+    raw_pts = ellipse_px(a_raw, b_raw)
+    draw_dashed_poly([(p[0],p[1]) for p in raw_pts], (80,80,90))   # reuse helper with px coords? — see note*
 
-    # Shrunk diamond outline (solid white)
-    nd = len(shrunk_diam_xy)
-    for i in range(nd):
-        ax, ay = to_px(*shrunk_diam_xy[i])
-        bx, by = to_px(*shrunk_diam_xy[(i+1)%nd])
-        draw_line(ax, ay, bx, by, (200, 200, 210), 1)
-
-    # Flight path arrows between consecutive waypoints (cyan)
-    nw = len(wp_xy)
-    for i in range(nw):
-        ax, ay = to_px(*wp_xy[i])
-        bx, by = to_px(*wp_xy[(i+1)%nw])
-        draw_arrow(ax, ay, bx, by, (0, 190, 215), 10, 2)
-
-    # Entry / apex / exit dots per corner
-    for entry, apex, exit_ in corner_triples:
-        if entry == apex == exit_:
-            px, py = to_px(*apex)
-            draw_circle(px, py, 5, (255, 210, 0), fill=True)
-        else:
-            for pt, col in ((entry, (255, 160, 0)), (apex, (255, 210, 0)), (exit_, (255, 160, 0))):
-                px, py = to_px(*pt)
-                draw_circle(px, py, 4, col, fill=True)
-
-    # Start-waypoint orange highlight ring
-    sx, sy = to_px(*wp_xy[start_wp_idx])
-    draw_circle(sx, sy, 13, (255, 90, 30))
-    draw_circle(sx, sy, 14, (255, 90, 30))
-
-    # Plane (green filled dot)
-    ppx, ppy = to_px(plane_x, plane_y)
-    draw_circle(ppx, ppy, 7, (40, 230, 90), fill=True)
-
-    # Arrow: plane → start waypoint
-    draw_arrow(ppx, ppy, sx, sy, (40, 230, 90), 12, 2)
+    # Shrunk ellipse outline (white)
+    shrunk_pts = ellipse_px(a_s, b_s)
+    for i in range(len(shrunk_pts)):
+        draw_line(*shrunk_pts[i], *shrunk_pts[(i+1)%len(shrunk_pts)], (200,200,210), 1)
 
     _write_png(filename, W, H, pixels)
     print(f"[IMAGE] Saved → {filename}")
@@ -541,8 +492,8 @@ def run_mission_1():
     nav_state     = load_nav_state()
 
     raw_search = nav_state.get("search_area", [])
-    if len(raw_search) != 4:
-        raise ValueError(f"search_area must have 4 entries, got {len(raw_search)}")
+    if not (3 <= len(raw_search) <= 6):
+        raise ValueError(f"search_area must have 3–6 entries, got {len(raw_search)}")
 
     search_coords = []
     for entry in raw_search:
@@ -564,7 +515,7 @@ def run_mission_1():
 
     active_plan = nav_state.get("active_plan", {})
     active_plan["plan_id"]   = 1
-    active_plan["plan_type"] = "Diamond Pattern"
+    active_plan["plan_type"] = "Ellipse Pattern"
     active_plan["status"]    = "searching"
     update_nav_state("active_plan", active_plan)
 
@@ -578,8 +529,8 @@ def run_mission_1():
     print(f"[STATE] alt_ft → {CRUISE_ALT_FT} ft")
 
     # Build diamond and waypoints
-    (waypoints_ll, search_xy, raw_diam_xy, shrunk_diam_xy,
-     wp_xy, corner_triples, o_lat, o_lon) = build_diamond(search_coords)
+    (waypoints_ll, hull_xy, ellipse_params,
+      wp_xy, o_lat, o_lon) = build_ellipse_path(search_coords)
     
     # ------------------------------------------------------------------
     # Serialise the 12 waypoints into active_plan.waypoints
@@ -619,8 +570,8 @@ def run_mission_1():
         try:
             img_path = Path(__file__).resolve().parent / "mission1_map.png"
             generate_map_image(
-                search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
-                corner_triples, plane_lat, plane_lon, current_wp_idx,
+                hull_xy, ellipse_params, wp_xy,
+                plane_lat, plane_lon, current_wp_idx,
                 o_lat, o_lon, filename=str(img_path),
             )
         except Exception:

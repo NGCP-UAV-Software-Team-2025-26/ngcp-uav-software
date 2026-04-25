@@ -59,14 +59,16 @@
     "valid": false
   },
   "active_plan": {
-    "plan_id": null,
-    "plan_type": null,
-    "status": null,
+    "plan_id": 1,
+    "plan_type": "Ellipse Pattern",
+    "status": "searching",
     "waypoints": [],
+    "loiter_radius_ft": null,
+    "alt_ft": null,
     "loiter_radius_m": null,
     "alt_m": null
   },
-  "next_plan": null,
+  "next_plan": 2,
   "navigation": {
     "mission_phase": 1,
     "current_waypoint": [
@@ -83,5 +85,6 @@
     "lon": null,
     "confidence": null,
     "timestamp": null
-  }
+  },
+  "alt_ft": 200.0
 }
