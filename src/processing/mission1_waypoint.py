@@ -154,11 +154,15 @@ def shrink_vertex_to_clearance(cx, cy, vx, vy, poly, clearance_m):
     # lo is the furthest safe position
     return cx + lo*dx, cy + lo*dy
 
+# ---------------------
+# Ellipse path pipeline
+# ---------------------
 
 def convex_hull(pts):
     """Graham scan → clockwise-ordered convex hull."""
     pts = sorted(set(pts))
-    if len(pts) <= 1: return pts
+    if len(pts) <= 1:
+        return pts
     def cross(o, a, b):
         return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
     lower, upper = [], []
@@ -170,11 +174,12 @@ def convex_hull(pts):
         upper.append(p)
     return lower[:-1] + upper[:-1]
 
+
 def fit_oriented_ellipse(hull_xy):
     """
     PCA orientation + min-projection inscribed sizing.
-    Returns (cx, cy, semi_major, semi_minor, angle_rad) where the ellipse
-    is the largest axis-aligned ellipse (in PCA frame) that fits INSIDE the hull.
+    Semi-axes = minimum projection of hull points onto each axis,
+    guaranteeing the ellipse is fully inside the hull.
     """
     cx, cy = centroid(hull_xy)
     dx = [p[0]-cx for p in hull_xy]
@@ -186,12 +191,8 @@ def fit_oriented_ellipse(hull_xy):
     trace = cxx + cyy
     det   = cxx*cyy - cxy*cxy
     l1    = trace/2 + math.sqrt(max(0.0, (trace/2)**2 - det))
-    l2    = trace/2 - math.sqrt(max(0.0, (trace/2)**2 - det))
     angle = math.atan2(l1 - cxx, cxy) if abs(cxy) > 1e-9 else (0.0 if cxx >= cyy else math.pi/2)
     cos_a, sin_a = math.cos(angle), math.sin(angle)
-    # Project every hull point onto major (u) and minor (v) axes.
-    # The inscribed semi-axes are the MINIMUM absolute projections —
-    # this ensures the ellipse does not protrude beyond any hull point.
     u_coords = [abs( (p[0]-cx)*cos_a + (p[1]-cy)*sin_a) for p in hull_xy]
     v_coords = [abs(-(p[0]-cx)*sin_a + (p[1]-cy)*cos_a) for p in hull_xy]
     a = min(u_coords) if u_coords else 1.0
@@ -201,12 +202,9 @@ def fit_oriented_ellipse(hull_xy):
         angle = angle + math.pi/2
     return cx, cy, a, b, angle
 
+
 def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
-    """
-    Binary-search uniform scale s in (0,1] so every point on ellipse(s·a, s·b)
-    is >= BORDER_CLEARANCE_M from every hull edge.
-    Samples 720 points for accuracy on elongated ellipses.
-    """
+    """Binary-search scale s so all ellipse points are >= BORDER_CLEARANCE_M from hull edges."""
     cos_a, sin_a = math.cos(angle), math.sin(angle)
     def min_clearance(s):
         min_d = float('inf')
@@ -216,11 +214,8 @@ def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
             px = cx + lx*cos_a - ly*sin_a
             py = cy + lx*sin_a + ly*cos_a
             d  = min_dist_to_poly_edges(px, py, hull_xy)
-            if d < min_d:
-                min_d = d
+            if d < min_d: min_d = d
         return min_d
-    # Ellipse is already inscribed (inside hull), so s=1 may already satisfy
-    # clearance. If it does, return as-is. Otherwise shrink.
     if min_clearance(1.0) >= BORDER_CLEARANCE_M:
         return a, b
     lo, hi = 0.0, 1.0
@@ -230,27 +225,35 @@ def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
         else:                                         hi = mid
     return lo*a, lo*b
 
+
 def ellipse_curvature(a, b, t):
     """κ(t) of ellipse at parameter t."""
     denom = (b*b*math.cos(t)**2 + a*a*math.sin(t)**2) ** 1.5
     return (a*b) / denom if denom > 1e-12 else 0.0
 
+
 def sample_ellipse_waypoints(cx, cy, a, b, angle):
-    """Curvature-aware adaptive sampling using MIN_TURN_ANGLE_DEG as spacing floor."""
+    """
+    Two-pass curvature-aware sampling.
+    Pass 1: compute total arc length.
+    Pass 2: adaptive spacing, base = arc_len / MAXIMUM_WAYPOINTS,
+            floor = chord subtending MIN_TURN_ANGLE_DEG at local curvature.
+    """
     cos_a, sin_a = math.cos(angle), math.sin(angle)
     min_angle_rad = math.radians(MIN_TURN_ANGLE_DEG)
-    pts, accum, t = [], 0.0, 0.0
     dt = 2*math.pi / 3600
+    arc_len = sum(math.hypot(-a*math.sin(t), b*math.cos(t)) * dt
+                  for t in (i*dt for i in range(3600)))
+    max_count = MAXIMUM_WAYPOINTS if MAXIMUM_WAYPOINTS > 0 else 50
+    base_sp = arc_len / max_count
+    pts, accum, t = [], 0.0, 0.0
     while t < 2*math.pi:
-        kappa = ellipse_curvature(a, b, t)
-        # Local radius of curvature; floor at 1 m to avoid div/0 on near-flat sections
+        kappa   = ellipse_curvature(a, b, t)
         R_local = 1.0 / kappa if kappa > 1e-6 else 1e6
-        # Minimum chord that subtends MIN_TURN_ANGLE_DEG at this curvature
         min_sp  = 2.0 * R_local * math.sin(min_angle_rad / 2.0)
-        max_sp  = STRAIGHT_SPACING_FACTOR * min_sp / max(CURVATURE_SPACING_FACTOR, 1e-6)
-        spacing = max(min_sp, min(max_sp, max_sp / (1 + CURVATURE_SENSITIVITY * kappa * R_local)))
-        dx_dt   = -a*math.sin(t); dy_dt = b*math.cos(t)
-        accum  += math.hypot(dx_dt, dy_dt) * dt
+        curved_sp = base_sp / (1.0 + CURVATURE_SENSITIVITY * kappa * R_local)
+        spacing = max(min_sp, min(base_sp, curved_sp))
+        accum  += math.hypot(-a*math.sin(t), b*math.cos(t)) * dt
         if accum >= spacing:
             lx = a*math.cos(t); ly = b*math.sin(t)
             pts.append((cx + lx*cos_a - ly*sin_a, cy + lx*sin_a + ly*cos_a))
@@ -258,26 +261,28 @@ def sample_ellipse_waypoints(cx, cy, a, b, angle):
         t += dt
     return pts
 
+
 def downsample_waypoints(wp_xy, max_count):
-    """Evenly subsample wp_xy to at most max_count points, preserving order and closure."""
+    """Evenly subsample wp_xy to at most max_count points, preserving order."""
     n = len(wp_xy)
     if max_count <= 0 or n <= max_count:
         return wp_xy
     indices = [round(i * n / max_count) % n for i in range(max_count)]
     return [wp_xy[i] for i in indices]
 
+
 def build_ellipse_path(search_coords):
     n = len(search_coords)
     if not (3 <= n <= 6):
-        raise ValueError(f"search_area must have 3–6 entries, got {n}")
+        raise ValueError(f"search_area must have 3-6 entries, got {n}")
     o_lat = sum(p[0] for p in search_coords) / n
     o_lon = sum(p[1] for p in search_coords) / n
-    local_pts = [to_local(lat, lon, o_lat, o_lon) for lat, lon in search_coords]
-    hull_xy   = convex_hull(local_pts)
+    local_pts  = [to_local(lat, lon, o_lat, o_lon) for lat, lon in search_coords]
+    hull_xy    = convex_hull(local_pts)
     cx, cy, a, b, angle = fit_oriented_ellipse(hull_xy)
-    a_s, b_s  = shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy)
-    wp_xy     = sample_ellipse_waypoints(cx, cy, a_s, b_s, angle)
-    wp_xy     = downsample_waypoints(wp_xy, MAXIMUM_WAYPOINTS)
+    a_s, b_s   = shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy)
+    wp_xy      = sample_ellipse_waypoints(cx, cy, a_s, b_s, angle)
+    wp_xy      = downsample_waypoints(wp_xy, MAXIMUM_WAYPOINTS)
     waypoints_ll = [from_local(x, y, o_lat, o_lon) for x, y in wp_xy]
     ellipse_params = (cx, cy, a, b, a_s, b_s, angle)
     return waypoints_ll, hull_xy, ellipse_params, wp_xy, o_lat, o_lon
@@ -511,6 +516,7 @@ def generate_map_image(hull_xy, ellipse_params, wp_xy,
     draw_circle(ppx, ppy, 7, (40, 230, 90), fill=True)
 
     # Green arrow: plane → nearest waypoint (first in ordered list plane will go to)
+    start_wp_idx = max(0, min(start_wp_idx, len(wp_xy) - 1))
     sx, sy = to_px(*wp_xy[start_wp_idx])
     draw_arrow(ppx, ppy, sx, sy, (40, 230, 90), 12, 2)
 
@@ -608,7 +614,9 @@ def run_mission_1():
     plane_lon = telem["lon_deg"]
     plane_yaw = telem.get("yaw_deg", 0.0)
 
-    current_wp_idx = closest_wp_index(plane_lat, plane_lon, waypoints_ll)
+    if not waypoints_ll:
+       raise RuntimeError("[MISSION 1] No waypoints generated — check build_ellipse_path output.")
+    current_wp_idx = max(0, min(current_wp_idx, len(waypoints_ll) - 1))
     print(f"[NAV] Plane at ({plane_lat:.6f}, {plane_lon:.6f}) "
           f"→ starting on WP{current_wp_idx}")
 
