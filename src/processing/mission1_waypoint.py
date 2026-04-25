@@ -249,6 +249,7 @@ def build_ellipse_path(search_coords):
     cx, cy, a, b, angle = fit_oriented_ellipse(hull_xy)
     a_s, b_s  = shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy)
     wp_xy     = sample_ellipse_waypoints(cx, cy, a_s, b_s, angle)
+    wp_xy     = downsample_waypoints(wp_xy, MAXIMUM_WAYPOINTS)
     waypoints_ll = [from_local(x, y, o_lat, o_lon) for x, y in wp_xy]
     ellipse_params = (cx, cy, a, b, a_s, b_s, angle)
     return waypoints_ll, hull_xy, ellipse_params, wp_xy, o_lat, o_lon
