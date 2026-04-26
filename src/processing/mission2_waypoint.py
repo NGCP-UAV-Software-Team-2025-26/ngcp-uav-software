@@ -12,7 +12,7 @@ from state.nav_state_utils import load_nav_state as load_state_nav, update_nav_s
 ###############################################################################
 # MISSION 2 CONFIGURATION
 ###############################################################################
-LOITER_RADIUS_FT    = 250.0  # Loiter circle radius written into active_plan.loiter_radius_ft (ft)
+LOITER_RADIUS_FT    = 3000.0  # Loiter circle radius written into active_plan.loiter_radius_ft (ft)
 BORDER_CLEARANCE_M  = 30.0   # Minimum distance circle edge must keep from search boundary (m)
 LOITER_SAMPLE_PTS   = 72     # Number of points sampled around circle circumference for checks
 UPDATE_INTERVAL_S   = 0.5    # Polling interval when waiting for target_location.valid (s)
@@ -288,24 +288,20 @@ def _arrow(pixels, width, height, x0, y0, x1, y1, r, g, b):
 
 
 def generate_image(search_xy, orig_centre, new_centre, radius_m,
-                   was_moved, loiter_radius_ft, alt_ft, o_lat, o_lon):
-    """
-    Render the mission 2 map PNG.
-
-    Elements:
-      Yellow polygon  — search area boundary
-      Dashed grey     — original loiter circle (only when nudged)
-      Solid cyan      — final loiter circle
-      Orange dot      — original centre (only when nudged)
-      Green dot       — final (possibly nudged) centre
-    """
+                   was_moved, loiter_radius_ft, alt_ft, o_lat, o_lon,
+                   plane_lat=None, plane_lon=None,
+                   target_lat=None, target_lon=None):
     W = H = 800
     PAD = 60
 
     # ---- world → screen transform ----------------------------------------
     all_x = [p[0] for p in search_xy]
     all_y = [p[1] for p in search_xy]
-    # Include both circle centres and circumference extents
+    # Include plane and raw target positions in extent so they're never clipped
+    for glat, glon in [(plane_lat, plane_lon), (target_lat, target_lon)]:
+        if glat is not None and glon is not None:
+            gx, gy = to_local(glat, glon, o_lat, o_lon)
+            all_x.append(gx); all_y.append(gy)
     for cx, cy in [(orig_centre[0], orig_centre[1]),
                    (new_centre[0],  new_centre[1])]:
         all_x += [cx - radius_m, cx + radius_m]
@@ -329,29 +325,30 @@ def generate_image(search_xy, orig_centre, new_centre, radius_m,
         x1, y1 = s(*search_xy[(i+1) % n])
         _line(pixels, W, H, x0, y0, x1, y1, 255, 220, 0)
 
-    # ---- original circle dashed grey (only when nudged) ------------------
-    if was_moved:
-        ocx, ocy = s(*orig_centre)
-        r_px = int(radius_m * scale)
-        _circle_outline(pixels, W, H, ocx, ocy, r_px, 130, 130, 130, dashed=True)
-        _filled_circle(pixels, W, H, ocx, ocy, 5, 255, 140, 0)   # orange dot
+    # ---- original circle — solid white (always drawn) --------------------
+    ocx, ocy = s(*orig_centre)
+    r_px = int(radius_m * scale)
+    _circle_outline(pixels, W, H, ocx, ocy, r_px, 255, 255, 255)
+    _filled_circle(pixels, W, H, ocx, ocy, 5, 255, 255, 255)        # white centre dot
 
-    # ---- final loiter circle (cyan) --------------------------------------
+    # ---- final nudged circle — solid cyan (only when moved) --------------
     ncx, ncy = s(*new_centre)
     r_px = int(radius_m * scale)
-    _circle_outline(pixels, W, H, ncx, ncy, r_px, 0, 220, 220)
+    if was_moved:
+        _circle_outline(pixels, W, H, ncx, ncy, r_px, 0, 220, 220)
+        _filled_circle(pixels, W, H, ncx, ncy, 5, 0, 220, 220)      # cyan centre dot
 
-    # ---- flight direction arrow along circle top -------------------------
-    ang0 = -math.pi / 2                     # top of circle
-    ang1 = ang0 + math.radians(30)
-    ax0  = int(ncx + r_px * math.cos(ang0))
-    ay0  = int(ncy + r_px * math.sin(ang0))
-    ax1  = int(ncx + r_px * math.cos(ang1))
-    ay1  = int(ncy + r_px * math.sin(ang1))
-    _arrow(pixels, W, H, ax0, ay0, ax1, ay1, 0, 220, 220)
+    # ---- mra_refined_loiter_target dot — orange (small, under plane dot) -
+    if target_lat is not None and target_lon is not None:
+        tx, ty = to_local(target_lat, target_lon, o_lat, o_lon)
+        tsx, tsy = s(tx, ty)
+        _filled_circle(pixels, W, H, tsx, tsy, 4, 255, 140, 0)      # orange, radius 4
 
-    # ---- final centre dot (green) ----------------------------------------
-    _filled_circle(pixels, W, H, ncx, ncy, 6, 0, 255, 80)
+    # ---- plane position dot — green (stacked on top of orange) -----------
+    if plane_lat is not None and plane_lon is not None:
+        gx, gy = to_local(plane_lat, plane_lon, o_lat, o_lon)
+        gsx, gsy = s(gx, gy)
+        _filled_circle(pixels, W, H, gsx, gsy, 6, 0, 255, 80)       # green, radius 6
 
     # ---- info text (burn pixels manually — keep stdlib only) -------------
     # Skip font rendering; embed metadata in filename comment instead.
@@ -414,9 +411,9 @@ def run_mission_2():
             raise ValueError(f"Invalid search_area entry: {entry}")
         search_coords.append((float(entry[0]), float(entry[1])))
 
-    # Origin for local-metre frame
-    o_lat = sum(p[0] for p in search_coords) / 4
-    o_lon = sum(p[1] for p in search_coords) / 4
+    n_coords = len(search_coords)
+    o_lat = sum(p[0] for p in search_coords) / n_coords
+    o_lon = sum(p[1] for p in search_coords) / n_coords
 
     local_pts = [to_local(lat, lon, o_lat, o_lon) for lat, lon in search_coords]
     search_xy = sort_clockwise(local_pts)   # closed convex quad in local metres
@@ -475,6 +472,10 @@ def run_mission_2():
 
     print(f"[LOITER] Radius: {loiter_radius_ft} ft  |  alt: {alt_ft} ft")
 
+    telem = read_latest_telemetry(fusion_log_path)
+    plane_lat = telem.get("lat_deg") if telem else None
+    plane_lon = telem.get("lon_deg") if telem else None
+
     if GENERATE_IMAGE:
         try:
             generate_image(
@@ -487,6 +488,10 @@ def run_mission_2():
                 alt_ft       = alt_ft,
                 o_lat        = o_lat,
                 o_lon        = o_lon,
+                plane_lat        = plane_lat,
+                plane_lon        = plane_lon,
+                target_lat       = target_lat,
+                target_lon       = target_lon,
             )
         except Exception:
             import traceback
@@ -508,10 +513,9 @@ def run_mission_2():
     # ------------------------------------------------------------------
     print("[MISSION 2] Loitering … waiting for target_location.valid …")
 
-    telem = read_latest_telemetry(fusion_log_path)
     if telem:
-        print(f"[TELEM] Plane at ({telem.get('lat_deg'):.6f}, "
-              f"{telem.get('lon_deg'):.6f}), yaw={telem.get('yaw_deg', 0):.1f}°")
+        print(f"[TELEM] Plane at ({plane_lat:.6f}, {plane_lon:.6f}), "
+              f"yaw={telem.get('yaw_deg', 0):.1f}°")
 
     try:
         while True:

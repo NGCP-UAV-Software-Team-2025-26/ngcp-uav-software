@@ -9,20 +9,17 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from state.mission_state_utils import load_state, update_state
 from state.nav_state_utils import load_nav_state, update_nav_state
 
-#######################################################################################################################################
-### JUST AS A NOTE, THIS WAYPOINT SYSTEM WILL ONLY WORK IF THE SEARCH AREA IS A **CONVEX** QUADRILATERAL. IT WILL NOT WORK FOR CONCAVE. 
-#######################################################################################################################################
 
 STANDBY_INTERVAL_S = 1.0    # Polling interval while waiting for autonomy_active (s)
 
 # MISSION 1 CONFIGURATION
 MIN_TURN_ANGLE_DEG      = 15.0   # Minimum heading change per waypoint segment (deg)
 WAYPOINT_RADIUS_FT      = 20.0   # Waypoint capture radius (ft)  ~20 m (# Capture radius: advance to next WP within this distance (ft))
-BORDER_CLEARANCE_FT     = 50.0  # Minimum clearance from boundary (ft)  (# Diamond corners must be at least this far from search border (ft)    ###################### Adjust this as necessary)
+BORDER_CLEARANCE_FT     = 50.0  # Minimum clearance from boundary (ft)     ###################### Adjust this as necessary)
 STRAIGHT_SPACING_FACTOR = 5.0    # Waypoint spacing on straights = factor × R
 CURVATURE_SPACING_FACTOR= 0.5    # Waypoint spacing on tight curves = factor × R
 CURVATURE_SENSITIVITY   = 2.0    # Higher = denser waypoints near turns
-MAXIMUM_WAYPOINTS       = 20     # Hard cap on waypoints written to JSON (0 = no limit)
+MAXIMUM_WAYPOINTS       = 30     # Hard cap on waypoints written to JSON (0 = no limit)
 
 FT_TO_M              = 0.3048
 BORDER_CLEARANCE_M   = BORDER_CLEARANCE_FT   * FT_TO_M

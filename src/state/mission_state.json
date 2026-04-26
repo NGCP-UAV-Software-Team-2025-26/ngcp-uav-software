@@ -4,9 +4,9 @@
   "timestamp": 1776460633.9005466,
   "last_sender_sysid": 255,
   "last_sender_compid": 0,
-  "kraken_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\kraken\\doa_20260425_164056.jsonl",
-  "telemetry_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\telemetry\\telemetry_20260425_164059.jsonl",
-  "fusion_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\fusion\\fusion_20260425_164056.jsonl",
+  "kraken_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\kraken\\doa_20260425_165838.jsonl",
+  "telemetry_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\telemetry\\telemetry_20260425_165840.jsonl",
+  "fusion_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\fusion\\fusion_20260425_165838.jsonl",
   "autonomy_active": true,
   "pending_action": null,
   "rtl_requested": false,
@@ -16,5 +16,10 @@
     "mission_count": 0,
     "current_mode": null,
     "active_waypoint_index": null
-  }
+  },
+  "mission_phase": 3,
+  "plan_id": 3,
+  "plan_type": "Small Loiter Pattern",
+  "status": "Loitering",
+  "next_plan": "Manual Takeover"
 }
