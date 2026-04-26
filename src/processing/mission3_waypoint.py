@@ -409,7 +409,7 @@ def _teardown(nav: dict, mis: dict):
     update_state_nav("target_location",           tl)
     update_state_nav("active_plan",               ap)
     update_state_nav("next_plan",                 None)
-    print("[mission3] Teardown complete. All loiter fields cleared.")
+    print("[MISSION 3] Teardown complete. All loiter fields cleared.")
 
 ###############################################################################
 # Main

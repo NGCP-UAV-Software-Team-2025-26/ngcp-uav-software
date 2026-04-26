@@ -757,8 +757,10 @@ def run_mission_1():
     print("[MISSION 1] Done. Launching mission2_waypoint.py …")
     mission2_path = Path(__file__).resolve().parent / "mission2_waypoint.py"
     if mission2_path.exists():
-        subprocess.Popen([sys.executable, str(mission2_path)])
+        proc = subprocess.Popen([sys.executable, str(mission2_path)])
         print(f"[HANDOFF] Launched {mission2_path}")
+        proc.wait()
+        sys.exit(0)
     else:
         print(f"[WARN] mission2_waypoint.py not found at {mission2_path} — skipping handoff.")
 
