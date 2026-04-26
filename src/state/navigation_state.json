@@ -31,7 +31,7 @@
     "confidence": null,
     "timestamp": null,
     "fix_id": null,
-    "valid": true
+    "valid": false
   },
   "mra_final_estimated_location": {
     "lat": null,
@@ -56,7 +56,7 @@
     "confidence": null,
     "timestamp": null,
     "id": null,
-    "valid": true
+    "valid": false
   },
   "active_plan": {
     "plan_id": 3,

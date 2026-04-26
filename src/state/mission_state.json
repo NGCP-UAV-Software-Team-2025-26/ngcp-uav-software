@@ -7,7 +7,7 @@
   "kraken_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\kraken\\doa_20260425_212029.jsonl",
   "telemetry_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\telemetry\\telemetry_20260425_212030.jsonl",
   "fusion_log": "C:\\MYDOWNLOADS\\Coding\\000 Scripts and Files\\Personal\\ngcp-uav-software\\logs\\fusion\\fusion_20260425_212029.jsonl",
-  "autonomy_active": true,
+  "autonomy_active": false,
   "pending_action": null,
   "rtl_requested": false,
   "mission_status": {
