@@ -50,40 +50,40 @@
     "valid": false
   },
   "target_location": {
-    "source": 34.01,
-    "lat": -118.01,
-    "lon": null,
+    "source": null,
+    "lat": 34.01,
+    "lon": -117.991,
     "confidence": null,
     "timestamp": null,
     "id": null,
-    "valid": false
+    "valid": true
   },
   "active_plan": {
-    "plan_id": 2,
-    "plan_type": "Big Loiter Pattern",
-    "status": "searching",
+    "plan_id": 3,
+    "plan_type": "Small Loiter Pattern",
+    "status": "Loitering",
     "waypoints": [
       {
         "lat": 34.01,
-        "lon": -118.01669189771295,
+        "lon": -117.99499970781496,
         "alt_ft": 200.0
       }
     ],
-    "loiter_radius_ft": 3000.0,
+    "loiter_radius_ft": 1000.0,
     "alt_ft": null,
     "loiter_radius_m": null,
     "alt_m": null
   },
-  "next_plan": 3,
+  "next_plan": "Manual Takeover",
   "navigation": {
-    "mission_phase": 2,
+    "mission_phase": 3,
     "current_waypoint": [
-      34.004552483088055,
-      -117.99605499273295
+      34.00300852340859,
+      -117.99915370976989
     ],
     "guidance_waypoint": [
-      33.99609163192605,
-      -117.99056881034899
+      34.00666262878561,
+      -118.00246313438396
     ]
   },
   "patient_location": {
