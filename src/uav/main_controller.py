@@ -22,11 +22,13 @@ log = logging.getLogger("main_controller")
 
 #Parameters
 STATE_POLL_HZ = 2.0 #How often to check state file
-MIN_ALT_M = 15 #Plane has to be above 15M for autonomy to engage
-LOITER_ALT_M = 60 #TArget loiter altitutde 
-LOITER_RADIUS_M = 50 #Acceptance radius for the loiter waypoint (Big cuz fixed wing)
+M
 TELEMETRY_TIMEOUT_S = 5 #How old telemetry can be before it is considered bad
 
+FT_TO_M = 0.3048
+MIN_ALT_FT = 50 #Min alt feet
+LOITER_ALT_FT = 200 #TArget loiter altitutde 
+LOITER_RADIUS_FT = 165 #Acceptance radius for the loiter waypoint (Big cuz fixed wing
 #From ARDUPILOT
 ARDUPLANE_MODES = {
     "MANUAL": 0, 
@@ -138,8 +140,11 @@ def build_loiter_items(plan: dict) -> list:
     wp = waypoints[0]
     lat = float(wp["lat"])
     lon = float(wp["lon"])
-    alt_m = float(wp.get("alt_m", LOITER_ALT_M))
-    loiter_radius_m = float(plan.get("loiter_radius_m", LOITER_RADIUS_M))
+    alt_ft = float(wp.get("alt_ft", plan.get("alt_ft", LOITER_ALT_FT)))    
+    loiter_radius_ft = float(plan.get("loiter_radius_ft", LOITER_RADIUS_FT))
+
+    alt_m = alt_ft * FT_TO_M
+    loiter_radius_m = loiter_radius_ft * FT_TO_M
 
     lat_i = int(lat * 1e7)
     lon_i = int(lon * 1e7)
@@ -179,8 +184,8 @@ def build_waypoint_items(plan: dict) -> list:
     first = waypoints[0]
     first_lat_i = int(float(first["lat"]) * 1e7)
     first_lon_i = int(float(first["lon"]) * 1e7)
-    first_alt_m = float(first.get("alt_m", LOITER_ALT_M))
-
+    first_alt_ft = float(first.get("alt_ft", plan.get("alt_ft", LOITER_ALT_FT)))
+    first_alt_m = first_alt_ft * FT_TO_M
     # ArduPilot placeholder/home item
     items.append(
         dict(
@@ -195,7 +200,8 @@ def build_waypoint_items(plan: dict) -> list:
     for i, wp in enumerate(waypoints, start=1):
         lat_i = int(float(wp["lat"]) * 1e7)
         lon_i = int(float(wp["lon"]) * 1e7)
-        alt_m = float(wp.get("alt_m", LOITER_ALT_M))
+        alt_ft = float(wp.get("alt_ft", plan.get("alt_ft", LOITER_ALT_FT)))
+        alt_m = alt_ft * FT_TO_M
 
         items.append(
             dict(
@@ -268,6 +274,8 @@ async def run():
     
 
     autonomy_active = False
+    controller_status = load_state().get("controller_status", {})
+    mission_status = load_state().get("mission_status", {})
     
     update_state("controller_status", {
         **controller_status,
@@ -281,6 +289,10 @@ async def run():
     state_period_s = 1.0 / STATE_POLL_HZ
     last_state_check = 0.0
     last_executed_plan_id = None
+
+    controller_status = load_state().get("controller_status", {})
+    autonomy_active = controller_status.get("autonomy_active", False)
+    last_fc_mode = controller_status.get("fc_mode")
 
     #We need telemetry because minimum height is needed for autonomy and loiter height is set
     telemetry = {
@@ -324,6 +336,62 @@ async def run():
         state = load_state()
 
         controller_status = state.get("controller_status", {})
+        fc_mode = controller_status.get("fc_mode")
+        mode_changed = (fc_mode != last_fc_mode)
+
+        if mode_changed:
+            log.info("FC mode transition: %s -> %s", last_fc_mode, fc_mode)
+            last_fc_mode = fc_mode
+
+        if mode_changed and fc_mode == "LOITER":
+            log.info("LOITER transition detected. Pausing autonomy.")
+            autonomy_active = False
+
+            controller_status = load_state().get("controller_status", {})
+            mission_status = load_state().get("mission_status", {})
+
+            update_state("controller_status", {
+                **controller_status,
+                "autonomy_active": False,
+                "safety_hold": "loiter",
+            })
+            controller_status = load_state().get("controller_status", {})
+            mission_status = load_state().get("mission_status", {})
+
+            update_state("mission_status", {
+                **mission_status,
+                "current_mode": "Loitering",
+            })
+
+            await asyncio.sleep(state_period_s)
+            continue
+
+        elif mode_changed and fc_mode == "RTL":
+            log.info("RTL transition detected. Pausing autonomy.")
+            autonomy_active = False
+
+            controller_status = load_state().get("controller_status", {})
+            mission_status = load_state().get("mission_status", {})
+
+            update_state("controller_status", {
+                **controller_status,
+                "autonomy_active": False,
+                "safety_hold": "rtl",
+            })
+
+            controller_status = load_state().get("controller_status", {})
+            mission_status = load_state().get("mission_status", {})
+
+            update_state("mission_status", {
+                **mission_status,
+                "current_mode": "RTL",
+            })
+
+            await asyncio.sleep(state_period_s)
+            continue
+
+        controller_status = load_state().get("controller_status", {})
+        mission_status = load_state().get("mission_status", {})
 
         update_state("controller_status", {
             **controller_status,
@@ -350,7 +418,37 @@ async def run():
                 telemetry.get("rel_alt_m", -1),
                 mode_str)
         
+       
         
+        # fc_mode = controller_status.get("fc_mode")
+        loiter_requested = state.get("loiter_requested", False)
+        #Loiter from GCS 
+        if loiter_requested:
+            log.info("Loitering")
+            autonomy_active = False
+            controller_status = load_state().get("controller_status", {})
+            mission_status = load_state().get("mission_status", {})
+            update_state("controller_status", {
+                **controller_status,
+                "autonomy_active": False, 
+                
+            })
+            if mission_status.get("current_mode") != "Loitering":
+                await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: mav_loiter_in_place(mav),
+                )
+
+            mission_status = load_state().get("mission_status", {})
+
+            update_state("mission_status", {
+                **mission_status,
+                "current_mode": "Loitering",
+            })
+
+            update_state("loiter_requested", False)
+            await asyncio.sleep(state_period_s)
+            continue
 
         #RTL !
         if rtl_requested:
@@ -485,28 +583,25 @@ async def run():
             # Stopping Autonomy
             log.info("Autonomy disabled")
             autonomy_active = False
+
             controller_status = load_state().get("controller_status", {})
             update_state("controller_status", {
                 **controller_status,
-                "autonomy_active": False, 
-                
+                "autonomy_active": False,
             })
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: mav_loiter_in_place(mav),
-            )
 
             update_state("mission_status", {
                 **mission_status,
                 "current_mode": "Idle",
             })
+
             await asyncio.sleep(state_period_s)
             continue
+                    
         
         if not autonomy_active:
             await asyncio.sleep(state_period_s)
             continue
-
 
         #Minimum height safety check
 
@@ -518,10 +613,14 @@ async def run():
             await asyncio.sleep(state_period_s)
             continue
 
-        if rel_alt < MIN_ALT_M:
+        min_alt_m = MIN_ALT_FT * FT_TO_M
+
+        if rel_alt < min_alt_m:
             log.debug(
-                "Altitude %.1f m is below minimum %.1f m. Waiting for climb.",
-                rel_alt, MIN_ALT_M,
+                "Altitude %.1f m / %.1f ft is below minimum %.1f ft. Waiting for climb.",
+                rel_alt,
+                rel_alt / FT_TO_M,
+                MIN_ALT_FT,
             )
             await asyncio.sleep(state_period_s)
             continue
