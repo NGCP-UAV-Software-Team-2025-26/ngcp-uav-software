@@ -31,7 +31,7 @@
     "confidence": null,
     "timestamp": null,
     "fix_id": null,
-    "valid": false
+    "valid": true
   },
   "mra_final_estimated_location": {
     "lat": null,
@@ -56,12 +56,13 @@
     "confidence": null,
     "timestamp": null,
     "id": null,
-    "valid": false
+    "valid": true
   },
   "active_plan": {
     "plan_id": 3,
-    "plan_type": "Small Loiter Pattern",
-    "status": "Loitering",
+    "plan_type": "single_loiter",
+    "label": "Small Loiter Pattern",
+    "status": "running",
     "waypoints": [
       {
         "lat": 34.01,
@@ -78,12 +79,12 @@
   "navigation": {
     "mission_phase": 3,
     "current_waypoint": [
-      34.00300852340859,
-      -117.99915370976989
+      34.01760817426301,
+      -118.00096519344012
     ],
     "guidance_waypoint": [
-      34.00666262878561,
-      -118.00246313438396
+      34.017772740580995,
+      -118.00176127633338
     ]
   },
   "patient_location": {

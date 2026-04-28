@@ -46,6 +46,7 @@ DEFAULTS = {
     "active_plan": {
         "plan_id": None,
         "plan_type": None,
+        "label": None,
         "status": None,
         "waypoints": [],
         "loiter_radius_ft": None,

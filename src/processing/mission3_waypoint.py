@@ -22,9 +22,9 @@ LOITER_RADIUS_FT    = 1000.0  # Loiter circle radius written into active_plan.lo
 BORDER_CLEARANCE_M  = 50.0   # Minimum distance circle edge must keep from search boundary (m)
 LOITER_SAMPLE_PTS   = 72     # Number of points sampled around circle circumference for checks
 UPDATE_INTERVAL_S   = 0.5    # Polling interval when waiting for target_location.valid (s)
-GENERATE_IMAGE      = True   # Toggle PNG generation
+GENERATE_IMAGE      = True   # Toggle PNG generation 
 
-EARTH_RADIUS_M = 6_371_000.0
+EARTH_RADIUS_M = 6371000.0
 
 
 ###############################################################################
@@ -398,6 +398,7 @@ def _teardown(nav: dict, mis: dict):
     ap = nav.setdefault("active_plan", {})
     ap["plan_id"]          = None
     ap["plan_type"]        = None
+    ap["label"]        = None
     ap["status"]           = None
     ap["loiter_radius_ft"] = None
     ap["alt_ft"]           = None
@@ -435,8 +436,10 @@ def run_mission_3():
 
     active_plan = nav_state.get("active_plan", {})
     active_plan["plan_id"]   = 3
-    active_plan["plan_type"] = "Small Loiter Pattern"
-    active_plan["status"]    = "Loitering"
+    active_plan["plan_id"] = 3
+    active_plan["plan_type"] = "single_loiter"
+    active_plan["label"] = "Small Loiter Pattern"
+    active_plan["status"] = "ready"
     update_state_nav("active_plan", active_plan)
 
     update_state_nav("next_plan", "Manual Takeover")

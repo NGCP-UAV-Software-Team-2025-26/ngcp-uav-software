@@ -22,7 +22,7 @@ log = logging.getLogger("main_controller")
 
 #Parameters
 STATE_POLL_HZ = 2.0 #How often to check state file
-M
+
 TELEMETRY_TIMEOUT_S = 5 #How old telemetry can be before it is considered bad
 
 FT_TO_M = 0.3048
@@ -368,14 +368,12 @@ async def run():
 
         elif mode_changed and fc_mode == "RTL":
             log.info("RTL transition detected. Pausing autonomy.")
-            autonomy_active = False
 
             controller_status = load_state().get("controller_status", {})
             mission_status = load_state().get("mission_status", {})
 
             update_state("controller_status", {
                 **controller_status,
-                "autonomy_active": False,
                 "safety_hold": "rtl",
             })
 
@@ -386,9 +384,6 @@ async def run():
                 **mission_status,
                 "current_mode": "RTL",
             })
-
-            await asyncio.sleep(state_period_s)
-            continue
 
         controller_status = load_state().get("controller_status", {})
         mission_status = load_state().get("mission_status", {})
@@ -538,27 +533,27 @@ async def run():
             log.info("Autopilot mode restored. Resuming autonomy.")
             update_state("mission_status", {**mission_status, "current_mode": "Idle"})
 
-        if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
-            log.info("Aircraft is in RTL. Not re-enabling autonomy.")
-            autonomy_active = False
-            controller_status = load_state().get("controller_status", {})
-            update_state("controller_status", {
-                **controller_status,
-                "autonomy_active": False,
-            })
-            update_state("mission_status", {
-                **mission_status,
-                "current_mode": "RTL",
-            })
-            await asyncio.sleep(state_period_s)
-            continue
+        # if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
+        #     log.info("Aircraft is in RTL. Not re-enabling autonomy.")
+        #     autonomy_active = False
+        #     controller_status = load_state().get("controller_status", {})
+        #     update_state("controller_status", {
+        #         **controller_status,
+        #         "autonomy_active": False,
+        #     })
+        #     update_state("mission_status", {
+        #         **mission_status,
+        #         "current_mode": "RTL",
+        #     })
+        #     await asyncio.sleep(state_period_s)
+        #     continue
 
         if should_autonomy and not autonomy_active:
 
-            if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
-                # NEVER re-enable during RTL
-                await asyncio.sleep(state_period_s)
-                continue
+            # if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
+            #     # NEVER re-enable during RTL
+            #     await asyncio.sleep(state_period_s)
+            #     continue
 
             if pilot_in_control:
                 # don't re-enable if pilot still flying
@@ -567,9 +562,11 @@ async def run():
             log.info("Autonomy enabled")
             autonomy_active = True
             controller_status = load_state().get("controller_status", {})
+
             update_state("controller_status", {
                 **controller_status,
                 "autonomy_active": True, 
+                "safety_hold": None,
                 
             })
 

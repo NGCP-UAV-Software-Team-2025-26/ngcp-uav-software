@@ -337,32 +337,40 @@ def build_ellipse_path(search_coords):
 # Fusion-log reader — reads last line of JSONL file
 # -------------------------------------------------
 
-def read_latest_telemetry(fusion_log_path):
-    path = Path(fusion_log_path)
-    if not path.exists():
-        print(f"[WARN] Fusion log not found: {path}")
+def read_latest_telemetry(fusion_log_path: str):
+    if not fusion_log_path:
+        print("[WARN] No fusion_log path in mission_state")
         return None
-    try:
-        with open(path, "rb") as f:
-            f.seek(0, 2)
-            size = f.tell()
-            if size == 0:
-                return None
-            buf, pos = b"", size - 1
-            while pos >= 0:
-                f.seek(pos)
-                ch = f.read(1)
-                if ch == b"\n" and buf.strip():
-                    break
-                buf = ch + buf
-                pos -= 1
-            line = buf.decode("utf-8", errors="replace").strip()
-            if line:
-                return json.loads(line)
-    except Exception as e:
-        print(f"[WARN] Could not read fusion log: {e}")
-    return None
 
+    path = Path(fusion_log_path)
+
+    if not path.exists():
+        print(f"[WARN] Fusion log does not exist: {path}")
+        return None
+
+    try:
+        lines = path.read_text().splitlines()
+    except Exception as exc:
+        print(f"[WARN] Could not read fusion log file: {exc}")
+        return None
+
+    # Read from newest to oldest, skipping corrupted / partial lines
+    for line in reversed(lines):
+        line = line.strip()
+
+        if not line:
+            continue
+
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if "lat_deg" in data and "lon_deg" in data:
+            return data
+
+    print("[WARN] No valid telemetry line with lat_deg/lon_deg found in fusion log")
+    return None
 
 # --------------------------
 # Closest waypoint selection
@@ -582,7 +590,8 @@ def run_mission_1():
     print("[MISSION 1] Standby … waiting for autonomy_active …")
     while True:
         mission_state = load_state()
-        if mission_state.get("autonomy_active", False):
+        controller_status = mission_state.get("controller_status", {})
+        if controller_status.get("autonomy_active", False):
             print("[MISSION 1] autonomy_active = True — proceeding.")
             break
         time.sleep(STANDBY_INTERVAL_S)
@@ -614,8 +623,9 @@ def run_mission_1():
 
     active_plan = nav_state.get("active_plan", {})
     active_plan["plan_id"]   = 1
-    active_plan["plan_type"] = "Ellipse Pattern"
-    active_plan["status"]    = "searching"
+    active_plan["plan_type"] = "waypoint_pattern"
+    active_plan["label"] = "Ellipse Pattern"
+    active_plan["status"] = "ready"
     update_nav_state("active_plan", active_plan)
 
     update_nav_state("next_plan", 2)
@@ -702,12 +712,18 @@ def run_mission_1():
 
             telem = read_latest_telemetry(fusion_log_path)
             if telem is None:
+                print("[MISSION 1] Waiting for valid fusion telemetry...")
                 time.sleep(UPDATE_INTERVAL_S)
                 continue
 
             plane_lat = telem["lat_deg"]
             plane_lon = telem["lon_deg"]
             plane_yaw = telem.get("yaw_deg", 0.0)
+
+            if plane_lat is None or plane_lon is None:
+                print("[MISSION 1] Fusion telemetry missing lat_deg/lon_deg. Waiting...")
+                time.sleep(UPDATE_INTERVAL_S)
+                continue
 
             wp_lat, wp_lon = waypoints_ll[current_wp_idx]
             dist_to_wp = haversine(plane_lat, plane_lon, wp_lat, wp_lon)

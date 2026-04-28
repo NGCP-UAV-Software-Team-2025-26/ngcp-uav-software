@@ -388,8 +388,9 @@ def run_mission_2():
 
     active_plan = nav_state.get("active_plan", {})
     active_plan["plan_id"]   = 2
-    active_plan["plan_type"] = "Big Loiter Pattern"
-    active_plan["status"]    = "searching"
+    active_plan["plan_type"] = "single_loiter"
+    active_plan["label"] = "Big Loiter Pattern"
+    active_plan["status"] = "ready"
     update_state_nav("active_plan", active_plan)
 
     update_state_nav("next_plan", 3)
