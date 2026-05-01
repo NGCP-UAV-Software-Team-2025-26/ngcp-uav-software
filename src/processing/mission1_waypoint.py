@@ -3,6 +3,7 @@ import json
 import math
 import time
 import subprocess
+import logging
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -35,6 +36,14 @@ CRUISE_ALT_FT      = 200.0  # Cruise altitude written into active_plan.alt_ft (f
 
 EARTH_RADIUS_M = 6_371_000.0
 
+
+
+log = logging.getLogger("mission_waypoint")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 # Geodetic helpers
 
@@ -587,14 +596,14 @@ def run_mission_1():
     # ------------------------------------------------------------------
     # Standby — wait until mission_state.json autonomy_active is True
     # ------------------------------------------------------------------
-    print("[MISSION 1] Standby … waiting for autonomy_active …")
-    while True:
-        mission_state = load_state()
-        controller_status = mission_state.get("controller_status", {})
-        if controller_status.get("autonomy_active", False):
-            print("[MISSION 1] autonomy_active = True — proceeding.")
-            break
-        time.sleep(STANDBY_INTERVAL_S)
+    # print("[MISSION 1] Standby … waiting for autonomy_active …")
+    # while True:
+    #     mission_state = load_state()
+    #     controller_status = mission_state.get("controller_status", {})
+    #     if controller_status.get("autonomy_active", False):
+    #         print("[MISSION 1] autonomy_active = True — proceeding.")
+    #         break
+    #     time.sleep(STANDBY_INTERVAL_S)
 
     mission_state = load_state()
     nav_state     = load_nav_state()
@@ -621,16 +630,20 @@ def run_mission_1():
     update_nav_state("navigation", nav)
     print("[STATE] mission_phase → 1")
 
-    active_plan = nav_state.get("active_plan", {})
-    active_plan["plan_id"]   = 1
-    active_plan["plan_type"] = "waypoint_pattern"
-    active_plan["label"] = "Ellipse Pattern"
-    active_plan["status"] = "ready"
+    active_plan = {
+        "plan_id": 1,
+        "plan_type": "waypoint_pattern",
+        "label": "Ellipse Pattern",
+        "status": "building",
+        "waypoints": [],
+        "alt_ft": CRUISE_ALT_FT,
+    }
     update_nav_state("active_plan", active_plan)
+    
 
     update_nav_state("next_plan", 2)
 
-    print("[STATE] active_plan → plan_id=1, plan_type='Ellipse Pattern', status='searching'")
+    print("[STATE] active_plan → plan_id=1, plan_type='Ellipse Pattern', status='building'")
     print("[STATE] next_plan   → 2")
 
     # Write cruise altitude into the nav state so mission 2+ can read it
@@ -646,12 +659,37 @@ def run_mission_1():
     # alt_m is read from active_plan.alt_m (already in the JSON)
     # ------------------------------------------------------------------
     nav_state   = load_nav_state()
+
+    nav = nav_state.get("navigation", {})
+    nav["mission_phase"] = 1
+    update_nav_state("navigation", nav)
+    print("[STATE] mission_phase → 1")
+
+    # Clear stale Mission 2 trigger
+    mra_refined = nav_state.get("mra_refined_loiter_target", {})
+    mra_refined.update({
+        "lat": None,
+        "lon": None,
+        "confidence": None,
+        "timestamp": None,
+        "fix_id": None,
+        "valid": False,
+    })
+    update_nav_state("mra_refined_loiter_target", mra_refined)
+    print("[STATE] mra_refined_loiter_target.valid → False")
     active_plan = nav_state.get("active_plan", {})
 
-    active_plan["waypoints"] = [
-        {"lat": lat, "lon": lon, "alt_ft": CRUISE_ALT_FT}
-        for lat, lon in waypoints_ll
-    ]
+    active_plan = {
+        "plan_id": 1,
+        "plan_type": "waypoint_pattern",
+        "label": "Ellipse Pattern",
+        "status": "ready",
+        "waypoints": [
+            {"lat": lat, "lon": lon, "alt_ft": CRUISE_ALT_FT}
+            for lat, lon in waypoints_ll
+        ],
+        "alt_ft": CRUISE_ALT_FT,
+    }
     update_nav_state("active_plan", active_plan)
     print(f"[STATE] active_plan.waypoints → {len(waypoints_ll)} entries written")
 
@@ -659,12 +697,33 @@ def run_mission_1():
     for i, (lat, lon) in enumerate(waypoints_ll):
         print(f"  WP{i}  lat={lat:.7f}  lon={lon:.7f}")
 
+    print("[MISSION 1] Plan is ready. Waiting for autonomy_active before live guidance …")
+    while True:
+        mission_state = load_state()
+        controller_status = mission_state.get("controller_status", {})
+
+        if controller_status.get("autonomy_active", False):
+            print("[MISSION 1] autonomy_active = True — entering live guidance.")
+            break
+
+        time.sleep(STANDBY_INTERVAL_S)
+
+    
+
     # Get initial telemetry
-    telem = read_latest_telemetry(fusion_log_path)
-    if telem is None:
-        raise RuntimeError(
-            "No telemetry available. Check fusion_log path in mission_state.json."
-        )
+    print("[MISSION 1] Waiting for initial valid fusion telemetry...")
+    while True:
+        telem = read_latest_telemetry(fusion_log_path)
+
+        if telem is not None:
+            plane_lat = telem.get("lat_deg")
+            plane_lon = telem.get("lon_deg")
+
+            if plane_lat is not None and plane_lon is not None:
+                break
+
+        print("[MISSION 1] No valid telemetry yet. Waiting...")
+        time.sleep(STANDBY_INTERVAL_S)
 
     plane_lat = telem["lat_deg"]
     plane_lon = telem["lon_deg"]
@@ -699,6 +758,9 @@ def run_mission_1():
     print("[MISSION 1] Entering guidance loop (Ctrl-C to stop) …")
 
     #mission_start = time.monotonic()
+
+    mission1_live_start = time.time()
+    MIN_MISSION1_RUN_TIME_S = 10.0
 
     try:
         while True:
@@ -750,11 +812,23 @@ def run_mission_1():
             nav["guidance_waypoint"] = [guide_lat, guide_lon]
             update_nav_state("navigation", nav)
 
+            
             # Check exit condition — mra_refined_loiter_target.valid
             fresh = load_nav_state()
-            if fresh.get("mra_refined_loiter_target", {}).get("valid", False):
+            
+
+
+            target = fresh.get("mra_refined_loiter_target", {})
+
+            mission1_runtime = time.time() - mission1_live_start
+
+            if (
+                mission1_runtime >= MIN_MISSION1_RUN_TIME_S
+                and target.get("valid", False)
+            ):
                 print("[MISSION 1] Big Loiter coordinates received. Ending mission 1. Proceeding to Mission 2.")
                 break
+             
 
             time.sleep(UPDATE_INTERVAL_S)
 

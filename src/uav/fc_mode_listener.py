@@ -37,21 +37,30 @@ def main():
             state = load_state()
             controller_status = state.get("controller_status", {})
 
-            autonomy_active = (mode == "AUTO")
-
             if mode == "AUTO":
                 update_state("autonomy_command", True)
+
+                update_state("controller_status", {
+                    **controller_status,
+                    "fc_mode": mode,
+                    "autonomy_source": "fc_mode",
+                    "safety_hold": None,
+                    "fc_mode_last_updated": time.time(),
+                    "fc_mode_source": "pixhawk_heartbeat"
+                })
 
             elif mode in ["LOITER", "RTL", "MANUAL", "FBWA", "FBWB", "CRUISE", "STABILIZE"]:
                 update_state("autonomy_command", False)
 
-            update_state("controller_status", {
-                **controller_status,
-                "fc_mode": mode,
-                "autonomy_source": "fc_mode" if mode == "AUTO" else None,
-                "fc_mode_last_updated": time.time(),
-                "fc_mode_source": "pixhawk_heartbeat"
-            })
+                update_state("controller_status", {
+                    **controller_status,
+                    "fc_mode": mode,
+                    "autonomy_source": None,
+                    "safety_hold": mode.lower(),
+                    "fc_mode_last_updated": time.time(),
+                    "fc_mode_source": "pixhawk_heartbeat"
+                })
+
 
         
         

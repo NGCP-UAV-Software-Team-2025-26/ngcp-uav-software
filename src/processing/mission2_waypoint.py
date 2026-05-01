@@ -12,11 +12,15 @@ from state.nav_state_utils import load_nav_state as load_state_nav, update_nav_s
 ###############################################################################
 # MISSION 2 CONFIGURATION
 ###############################################################################
-LOITER_RADIUS_FT    = 3000.0  # Loiter circle radius written into active_plan.loiter_radius_ft (ft)
+LOITER_RADIUS_FT    = 250.0  # Loiter circle radius written into active_plan.loiter_radius_ft (ft)
 BORDER_CLEARANCE_M  = 30.0   # Minimum distance circle edge must keep from search boundary (m)
 LOITER_SAMPLE_PTS   = 72     # Number of points sampled around circle circumference for checks
 UPDATE_INTERVAL_S   = 0.5    # Polling interval when waiting for target_location.valid (s)
 GENERATE_IMAGE      = True   # Toggle PNG generation
+
+STANDBY_INTERVAL_S = 1.0
+DEFAULT_ALT_FT = 200.0
+MIN_MISSION2_RUN_TIME_S = 10.0
 
 EARTH_RADIUS_M = 6_371_000.0
 
@@ -377,26 +381,51 @@ def run_mission_2():
     mission_state = load_state()
     nav_state     = load_state_nav()
 
-    fusion_log_path = mission_state.get("fusion_log", "")
+    fusion_log_path = mission_state.get("fusion_log")
 
+    if not fusion_log_path:
+        print("[WARN] No fusion_log path in mission_state.json. Continuing without plane telemetry.")
+        telem = None
+    else:
+        telem = read_latest_telemetry(fusion_log_path)
     # ------------------------------------------------------------------
     # Startup: write plan metadata
     # ------------------------------------------------------------------
     nav = nav_state.get("navigation", {})
     nav["mission_phase"] = 2
-    update_state_nav("navigation", nav)
 
-    active_plan = nav_state.get("active_plan", {})
-    active_plan["plan_id"]   = 2
-    active_plan["plan_type"] = "single_loiter"
-    active_plan["label"] = "Big Loiter Pattern"
-    active_plan["status"] = "ready"
+    update_state_nav("navigation", nav)
+    print("[STATE] mission_phase → 2")
+    
+    target_location = nav_state.get("target_location", {})
+    target_location.update({
+        "valid": False,
+        "source": None,
+        "lat": None,
+        "lon": None,
+        "confidence": None,
+        "timestamp": None,
+        "id": None,
+    })
+
+    update_state_nav("target_location", target_location)
+    print("[STATE] target_location.valid → False")
+
+    active_plan = {
+        "plan_id": 2,
+        "plan_type": "single_loiter",
+        "label": "Big Loiter Pattern",
+        "status": "building",
+        "waypoints": [],
+        "loiter_radius_ft": LOITER_RADIUS_FT,
+        "alt_ft": None,
+    }
     update_state_nav("active_plan", active_plan)
 
     update_state_nav("next_plan", 3)
 
-    print("[STATE] mission_phase=2, plan_id=2, plan_type='Big Loiter Pattern', "
-          "status='searching', next_plan=3")
+    print("[STATE] mission_phase=2, plan_id=2, plan_type='single_loiter', "
+      "label='Big Loiter Pattern', status='building', next_plan=3")
 
     # ------------------------------------------------------------------
     # Read search area
@@ -422,15 +451,23 @@ def run_mission_2():
     # ------------------------------------------------------------------
     # Read loiter target
     # ------------------------------------------------------------------
-    loiter_target = nav_state.get("mra_refined_loiter_target", {})
-    if not loiter_target.get("valid", False):
-        print("[WARN] mra_refined_loiter_target.valid is False — "
-              "proceeding with whatever lat/lon is present.")
 
-    target_lat = loiter_target.get("lat")
-    target_lon = loiter_target.get("lon")
-    if target_lat is None or target_lon is None:
-        raise ValueError("mra_refined_loiter_target lat/lon are None — cannot build loiter.")
+    print("[MISSION 2] Waiting for valid mra_refined_loiter_target...")
+
+    while True:
+        nav_state = load_state_nav()
+        loiter_target = nav_state.get("mra_refined_loiter_target", {})
+
+        target_lat = loiter_target.get("lat")
+        target_lon = loiter_target.get("lon")
+
+        if loiter_target.get("valid", False) and target_lat is not None and target_lon is not None:
+            print(f"[MISSION 2] Got loiter target: ({target_lat:.7f}, {target_lon:.7f})")
+            break
+
+        print("[MISSION 2] No valid mra_refined_loiter_target yet. Waiting...")
+        time.sleep(STANDBY_INTERVAL_S)
+    
 
     # ------------------------------------------------------------------
     # Read loiter radius (feet — kept as-is, no unit conversion)
@@ -449,8 +486,9 @@ def run_mission_2():
     # ------------------------------------------------------------------
     alt_ft = nav_state.get("alt_ft")
     if alt_ft is None:
-        raise ValueError("alt_ft is None in navigation_state.json.")
-
+        alt_ft = DEFAULT_ALT_FT
+        update_state_nav("alt_ft", alt_ft)
+        print(f"[WARN] alt_ft was None. Defaulting to {alt_ft} ft.")
     # ------------------------------------------------------------------
     # Convert loiter centre to local frame and clamp to search area
     # ------------------------------------------------------------------
@@ -473,7 +511,47 @@ def run_mission_2():
 
     print(f"[LOITER] Radius: {loiter_radius_ft} ft  |  alt: {alt_ft} ft")
 
-    telem = read_latest_telemetry(fusion_log_path)
+    # ------------------------------------------------------------------
+    # Write waypoint (single centre point) to active_plan.waypoints
+    # ------------------------------------------------------------------
+   
+    active_plan = {
+        "plan_id": 2,
+        "plan_type": "single_loiter",
+        "label": "Big Loiter Pattern",
+        "status": "ready",
+        "waypoints": [
+            {
+                "lat": new_lat,
+                "lon": new_lon,
+                "alt_ft": alt_ft,
+            }
+        ],
+        "loiter_radius_ft": loiter_radius_ft,
+        "alt_ft": alt_ft,
+    }
+
+    update_state_nav("active_plan", active_plan)
+    print("[STATE] active_plan written as single_loiter and status → 'ready'")
+
+    print("[MISSION 2] Plan is ready. Waiting for autonomy_active before loiter monitoring...")
+
+    while True:
+        mission_state = load_state()
+        controller_status = mission_state.get("controller_status", {})
+        nav_state = load_state_nav()
+        active_plan = nav_state.get("active_plan", {})
+
+        if (
+            controller_status.get("autonomy_active", False)
+            and active_plan.get("plan_id") == 2
+            and active_plan.get("status") in ("uploaded", "running")
+        ):
+            print("[MISSION 2] Mission 2 is active/running. Entering loiter monitoring.")
+            break
+
+        time.sleep(STANDBY_INTERVAL_S)
+
     plane_lat = telem.get("lat_deg") if telem else None
     plane_lon = telem.get("lon_deg") if telem else None
 
@@ -499,16 +577,7 @@ def run_mission_2():
             traceback.print_exc()
             print("[WARN] PNG generation failed — continuing.")
 
-    # ------------------------------------------------------------------
-    # Write waypoint (single centre point) to active_plan.waypoints
-    # ------------------------------------------------------------------
-    active_plan = load_state_nav().get("active_plan", {})
-    active_plan["waypoints"] = [
-        {"lat": new_lat, "lon": new_lon, "alt_ft": alt_ft}
-    ]
-    update_state_nav("active_plan", active_plan)
-    print("[STATE] active_plan.waypoints written (loiter centre).")
-
+    
     # ------------------------------------------------------------------
     # Guidance loop — poll until target_location.valid becomes True
     # ------------------------------------------------------------------
@@ -518,12 +587,19 @@ def run_mission_2():
         print(f"[TELEM] Plane at ({plane_lat:.6f}, {plane_lon:.6f}), "
               f"yaw={telem.get('yaw_deg', 0):.1f}°")
 
+    mission2_live_start = time.time()
+
     try:
         while True:
             nav_state      = load_state_nav()
             target_location = nav_state.get("target_location", {})
 
-            if target_location.get("valid", False):
+            mission2_runtime = time.time() - mission2_live_start
+
+            if (
+                mission2_runtime >= MIN_MISSION2_RUN_TIME_S
+                and target_location.get("valid", False)
+            ):
                 print("[MISSION 2] target_location.valid = True — exiting loiter.")
                 break
 

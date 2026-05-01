@@ -1,33 +1,33 @@
 {
   "search_area": [
     [
-      34.0,
-      -118.0
+      34.044485,
+      -117.814538
     ],
     [
-      34.0,
-      -118.02
+      34.042812,
+      -117.812002
     ],
     [
-      34.02,
-      -118.02
+      34.040978,
+      -117.813997
     ],
     [
-      34.02,
-      -118.0
+      34.039158,
+      -117.815556
     ],
     [
-      34.01,
-      -117.99
+      34.04061,
+      -117.817737
     ],
     [
-      34.01,
-      -118.03
+      34.042604,
+      -117.816364
     ]
   ],
   "mra_refined_loiter_target": {
-    "lat": 34.01,
-    "lon": -118.02,
+    "lat": 34.041737,
+    "lon": -117.814041,
     "confidence": null,
     "timestamp": null,
     "fix_id": null,
@@ -51,40 +51,33 @@
   },
   "target_location": {
     "source": null,
-    "lat": 34.01,
-    "lon": -117.991,
+    "lat": 34.043391,
+    "lon": -117.81441,
     "confidence": null,
     "timestamp": null,
     "id": null,
     "valid": true
   },
   "active_plan": {
-    "plan_id": 3,
-    "plan_type": "single_loiter",
-    "label": "Small Loiter Pattern",
-    "status": "running",
-    "waypoints": [
-      {
-        "lat": 34.01,
-        "lon": -117.99499970781496,
-        "alt_ft": 200.0
-      }
-    ],
-    "loiter_radius_ft": 1000.0,
+    "plan_id": null,
+    "plan_type": null,
+    "label": null,
+    "status": null,
+    "waypoints": [],
+    "loiter_radius_ft": null,
     "alt_ft": null,
-    "loiter_radius_m": null,
-    "alt_m": null
+    "next_plan": null
   },
-  "next_plan": "Manual Takeover",
+  "next_plan": null,
   "navigation": {
     "mission_phase": 3,
     "current_waypoint": [
-      34.01760817426301,
-      -118.00096519344012
+      34.040667169522784,
+      -117.81604669535675
     ],
     "guidance_waypoint": [
-      34.017772740580995,
-      -118.00176127633338
+      34.040667169522784,
+      -117.81604669535675
     ]
   },
   "patient_location": {
