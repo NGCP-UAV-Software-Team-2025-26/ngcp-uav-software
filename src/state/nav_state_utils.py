@@ -1,10 +1,14 @@
 import json
+import os
+import time
+import traceback
+from copy import deepcopy
 from pathlib import Path
 
 NAV_STATE_FILE = Path(__file__).resolve().parent / "navigation_state.json"
 
 DEFAULTS = {
-    "search_area": None,
+    "search_area": [],
 
     "mra_refined_loiter_target": {
         "lat": None,
@@ -12,7 +16,7 @@ DEFAULTS = {
         "confidence": None,
         "timestamp": None,
         "fix_id": None,
-        "valid": False
+        "valid": False,
     },
 
     "mra_final_estimated_location": {
@@ -21,7 +25,7 @@ DEFAULTS = {
         "confidence": None,
         "timestamp": None,
         "fix_id": None,
-        "valid": False
+        "valid": False,
     },
 
     "eru_reported_location": {
@@ -30,7 +34,7 @@ DEFAULTS = {
         "confidence": None,
         "timestamp": None,
         "report_id": None,
-        "valid": False
+        "valid": False,
     },
 
     "target_location": {
@@ -40,7 +44,7 @@ DEFAULTS = {
         "confidence": None,
         "timestamp": None,
         "id": None,
-        "valid": False
+        "valid": False,
     },
 
     "active_plan": {
@@ -59,31 +63,63 @@ DEFAULTS = {
         "mission_phase": None,
         "current_waypoint": None,
         "guidance_waypoint": None,
-    }
+    },
+
+    "alt_ft": 200.0,
 }
 
 
-def load_nav_state() -> dict:
-    try:
-        if NAV_STATE_FILE.exists():
-            loaded = json.loads(NAV_STATE_FILE.read_text())
-            return _merge_dicts(DEFAULTS, loaded)
-    except Exception:
-        pass
-    return json.loads(json.dumps(DEFAULTS))
-
-
-def update_nav_state(key: str, value) -> None:
-    state = load_nav_state()
-    state[key] = value
-    NAV_STATE_FILE.write_text(json.dumps(state, indent=2))
-
-
 def _merge_dicts(default: dict, override: dict) -> dict:
-    result = dict(default)
+    result = deepcopy(default)
+
+    if not isinstance(override, dict):
+        return result
+
     for k, v in override.items():
         if isinstance(v, dict) and isinstance(result.get(k), dict):
             result[k] = _merge_dicts(result[k], v)
         else:
             result[k] = v
+
     return result
+
+
+def load_nav_state() -> dict:
+    if not NAV_STATE_FILE.exists():
+        return deepcopy(DEFAULTS)
+
+    last_error = None
+
+    for _ in range(5):
+        try:
+            loaded = json.loads(NAV_STATE_FILE.read_text())
+            return _merge_dicts(DEFAULTS, loaded)
+        except Exception as exc:
+            last_error = exc
+            time.sleep(0.05)
+
+    raise RuntimeError(f"Could not read valid navigation_state.json: {last_error}")
+
+
+def _atomic_write_json(path: Path, data: dict) -> None:
+    tmp_path = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+
+    try:
+        tmp_path.write_text(json.dumps(data, indent=2))
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+
+
+def update_nav_state(key: str, value) -> None:
+    if key in ("search_area", "mra_refined_loiter_target", "target_location"):
+        print(f"[NAV_STATE WRITE] {key} -> {value}")
+        traceback.print_stack(limit=4)
+
+    state = load_nav_state()
+    state[key] = value
+    _atomic_write_json(NAV_STATE_FILE, state)

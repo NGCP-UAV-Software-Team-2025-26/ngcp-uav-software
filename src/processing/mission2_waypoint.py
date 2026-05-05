@@ -381,13 +381,6 @@ def run_mission_2():
     mission_state = load_state()
     nav_state     = load_state_nav()
 
-    fusion_log_path = mission_state.get("fusion_log")
-
-    if not fusion_log_path:
-        print("[WARN] No fusion_log path in mission_state.json. Continuing without plane telemetry.")
-        telem = None
-    else:
-        telem = read_latest_telemetry(fusion_log_path)
     # ------------------------------------------------------------------
     # Startup: write plan metadata
     # ------------------------------------------------------------------
@@ -430,10 +423,20 @@ def run_mission_2():
     # ------------------------------------------------------------------
     # Read search area
     # ------------------------------------------------------------------
-    nav_state  = load_state_nav()
-    raw_search = nav_state.get("search_area", [])
-    if not (3 <= len(raw_search) <= 6):
-        raise ValueError(f"search_area must have 3–6 entries, got {len(raw_search)}")
+   
+    while True:
+        nav_state = load_state_nav()
+        raw_search = nav_state.get("search_area", [])
+
+        if isinstance(raw_search, list) and 3 <= len(raw_search) <= 6:
+            break
+
+        if isinstance(raw_search, list) and len(raw_search) == 0:
+            print("[MISSION] Waiting for search_area from GCS...")
+        else:
+            print(f"[MISSION] Invalid search_area. Need 3–6 points, got: {raw_search}")
+
+        time.sleep(STANDBY_INTERVAL_S)
 
     search_coords = []
     for entry in raw_search:
@@ -551,6 +554,16 @@ def run_mission_2():
             break
 
         time.sleep(STANDBY_INTERVAL_S)
+
+
+    mission_state = load_state()
+    fusion_log_path = mission_state.get("fusion_log", "")
+
+    if not fusion_log_path:
+        print("[WARN] No fusion_log path in mission_state.json. Continuing without plane telemetry.")
+        telem = None
+    else:
+        telem = read_latest_telemetry(fusion_log_path)
 
     plane_lat = telem.get("lat_deg") if telem else None
     plane_lon = telem.get("lon_deg") if telem else None

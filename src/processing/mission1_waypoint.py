@@ -606,11 +606,19 @@ def run_mission_1():
     #     time.sleep(STANDBY_INTERVAL_S)
 
     mission_state = load_state()
-    nav_state     = load_nav_state()
+    while True:
+        nav = load_nav_state()
+        raw_search = nav.get("search_area", [])
 
-    raw_search = nav_state.get("search_area", [])
-    if not (3 <= len(raw_search) <= 6):
-        raise ValueError(f"search_area must have 3–6 entries, got {len(raw_search)}")
+        if isinstance(raw_search, list) and 3 <= len(raw_search) <= 6:
+            break
+
+        if isinstance(raw_search, list) and len(raw_search) == 0:
+            print("[MISSION 1] Waiting for search_area from GCS...")
+        else:
+            print(f"[MISSION 1] Invalid search_area. Need 3–6 points, got: {raw_search}")
+
+        time.sleep(1.0)
 
     search_coords = []
     for entry in raw_search:
@@ -618,7 +626,6 @@ def run_mission_1():
             raise ValueError(f"Invalid search_area entry: {entry}")
         search_coords.append((float(entry[0]), float(entry[1])))
 
-    fusion_log_path = mission_state.get("fusion_log", "")
 
     # ------------------------------------------------------------------
     # Startup: write plan metadata & mission phase before anything else
@@ -713,6 +720,9 @@ def run_mission_1():
     # Get initial telemetry
     print("[MISSION 1] Waiting for initial valid fusion telemetry...")
     while True:
+        mission_state = load_state()
+        fusion_log_path = mission_state.get("fusion_log", "")
+
         telem = read_latest_telemetry(fusion_log_path)
 
         if telem is not None:
@@ -771,6 +781,8 @@ def run_mission_1():
             #        print(f"[MISSION 1] Timeout reached ({MISSION_TIMEOUT_S:.0f}s). Ending mission.")
             #        break
             #------------------------------------------------------------
+            mission_state = load_state()
+            fusion_log_path = mission_state.get("fusion_log", "")
 
             telem = read_latest_telemetry(fusion_log_path)
             if telem is None:

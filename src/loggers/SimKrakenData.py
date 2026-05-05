@@ -24,7 +24,6 @@ update_state("kraken_log", str(filepath))
 RATE_HZ = 10
 INTERVAL = 1.0 / RATE_HZ
 
-
 # ==========================
 # DATA GENERATION LOOP
 # ==========================

@@ -454,10 +454,19 @@ def run_mission_3():
     # ------------------------------------------------------------------
     # Read search area
     # ------------------------------------------------------------------
-    nav_state  = load_state_nav()
-    raw_search = nav_state.get("search_area", [])
-    if not (3 <= len(raw_search) <= 6):
-        raise ValueError(f"search_area must have 3–6 entries, got {len(raw_search)}")
+    while True:
+        nav_state = load_state_nav()
+        raw_search = nav_state.get("search_area", [])
+
+        if isinstance(raw_search, list) and 3 <= len(raw_search) <= 6:
+            break
+
+        if isinstance(raw_search, list) and len(raw_search) == 0:
+            print("[MISSION] Waiting for search_area from GCS...")
+        else:
+            print(f"[MISSION] Invalid search_area. Need 3–6 points, got: {raw_search}")
+
+        time.sleep(STANDBY_INTERVAL_S)
 
     search_coords = []
     for entry in raw_search:
@@ -535,6 +544,7 @@ def run_mission_3():
 
     print(f"[LOITER] Radius: {loiter_radius_ft} ft  |  alt: {alt_ft} ft")
 
+    mission_state = load_state()
     fusion_log_path = mission_state.get("fusion_log")
 
     if not fusion_log_path:

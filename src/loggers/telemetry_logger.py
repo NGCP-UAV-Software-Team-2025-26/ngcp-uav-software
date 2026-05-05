@@ -144,7 +144,7 @@ async def main():
                         f.close()
                         f = None
                     logging_enabled = False
-                    update_state("telemetry_log", None)
+                    # update_state("telemetry_log", "None") #Commented out so the path isn't lost
                     print(f"STOP_LOG: closed {out_file}")
                     out_file = None
 
