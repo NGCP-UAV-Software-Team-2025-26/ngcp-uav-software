@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=NGCP UAV Autostart
+Comment=Unified launcher — replaces all individual autostart .desktop files and startup.service
+Exec=bash /home/ngcp25/ngcp-autostart.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true
