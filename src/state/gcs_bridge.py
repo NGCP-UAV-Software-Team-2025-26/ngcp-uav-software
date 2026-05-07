@@ -10,6 +10,21 @@ from state.nav_state_utils import update_nav_state
 TELEMETRY_FILE = Path("/tmp/telemetry.json")
 POLL_DT_S = 0.2
 
+SEARCH_AREA_ZONE_ID = 1  # change this to whatever GCS defines as search area
+
+def find_search_area_zone(zones):
+    if not isinstance(zones, list):
+        return []
+
+    for zone in zones:
+        zone_id = zone.get("zone_id")
+        coords = zone.get("coordinates")
+
+        if zone_id == SEARCH_AREA_ZONE_ID:
+            return coords
+
+    return []
+
 
 def utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -91,8 +106,8 @@ def main():
         # ------------------------------------------------------------
         # 1. Search area from GCS
         # ------------------------------------------------------------
-        search_area = data.get("search_area", [])
-
+        zones = data.get("zones", [])
+        search_area = find_search_area_zone(zones)
         if valid_search_area(search_area):
             current = json.dumps(search_area, sort_keys=True)
 
