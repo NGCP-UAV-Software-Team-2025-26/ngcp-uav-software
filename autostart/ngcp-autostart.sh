@@ -48,6 +48,21 @@ launch_kraken_doa() {
     cd "$KRAKEN_DIR" && sudo ./kraken_doa_start.sh &
 }
 
+# GCS bridge
+launch_gcs_bridge() {
+    local delay="${1:-0}"
+    sleep "$delay"
+    open_terminal "GCS Bridge" \
+        "python3 $UAV_SRC/state/gcs_bridge.py" &
+}
+
+# Fusion logger
+launch_fusion_logger() {
+    local delay="${1:-0}"
+    sleep "$delay"
+    open_terminal "Fusion Logger" \
+        "python3 $UAV_SRC/loggers/fusion_logger.py" &
+}
 
 # 2. Kraken data logger (Python, keeps terminal open)
 launch_kraken_logger() {
@@ -57,6 +72,14 @@ launch_kraken_logger() {
         "python3 $UAV_SRC/loggers/kraken_logger.py" &
 }
 
+# 6. Telemetry data logger (Python, keeps terminal open)
+launch_telemetry_logger() {
+    local delay="${1:-10}"  # wait for telemetry pipeline to be ready
+    sleep "$delay"
+    open_terminal "Telemetry Logger" \
+        "python3 $UAV_SRC/loggers/telemetry_logger.py" &
+}
+
 # 3. Ground-station command listener (Python, keeps terminal open)
 launch_command_listener() {
     local delay="${1:-5}"   # brief pause so logger is up first
@@ -64,6 +87,39 @@ launch_command_listener() {
     open_terminal "Command Listener" \
         "python3 $UAV_SRC/comms/command_listener.py" &
 }
+
+# 6.5 Fusion sender
+launch_fusion_sender() {
+    local delay="${1:-0}"
+    sleep "$delay"
+    open_terminal "Fusion Sender" \
+        "python3 $UAV_SRC/comms/fusion_sender.py" &
+}
+
+# 9. Main controller
+launch_main_controller() {
+    local delay="${1:-0}"
+    sleep "$delay"
+    open_terminal "Main Controller" \
+        "python3 $UAV_SRC/uav/main_controller.py" &
+}
+
+# 10. System controller
+launch_system_controller() {
+    local delay="${1:-0}"
+    sleep "$delay"
+    open_terminal "System Controller" \
+        "python3 $UAV_SRC/uav/system_controller.py" &
+}
+
+# 8. Flight controller mode controller
+launch_fc_mode_controller() {
+    local delay="${1:-0}"
+    sleep "$delay"
+    open_terminal "FC Mode Controller" \
+        "python3 $UAV_SRC/uav/fc_mode_controller.py" &
+}
+
 
 # 4. MAVProxy autostart binary (no terminal window)
 launch_mavproxy() {
@@ -81,12 +137,12 @@ launch_mavproxy_telemetry() {
         "$MAVPROXY_TELEMETRY_SCRIPT" &
 }
 
-# 6. Telemetry data logger (Python, keeps terminal open)
-launch_telemetry_logger() {
-    local delay="${1:-10}"  # wait for telemetry pipeline to be ready
+# 11. Mission 1 waypoint processor
+launch_mission1_waypoint() {
+    local delay="${1:-0}"
     sleep "$delay"
-    open_terminal "Telemetry Logger" \
-        "python3 $UAV_SRC/loggers/telemetry_logger.py" &
+    open_terminal "Mission1 Waypoint" \
+        "python3 $UAV_SRC/processing/mission1_waypoint.py" &
 }
 
 # 7. Firefox pointing at the KrakenSDR web UI
@@ -101,12 +157,29 @@ launch_firefox_kraken_ui() {
 # Optional per-call delay argument (seconds) overrides the function default.
 
 launch_kraken_doa          # 1. KrakenSDR DOA backend
-launch_kraken_logger       # 2. kraken_logger.py
-launch_command_listener    # 3. command_listener.py             (default  5 s delay)
-launch_mavproxy            # 4. ngcp-mavproxy-autostart
-launch_mavproxy_telemetry  # 5. ngcp-mavproxy-telemetry.sh
-launch_telemetry_logger    # 6. telemetry_logger.py             (default 10 s delay)
-launch_firefox_kraken_ui   # 7. Firefox → http://0.0.0.0:8080  (default 10 s delay)
+launch_gcs_bridge          # 2. gcs_bridge.py
+launch_fusion_logger       # 3. fusion_logger.py
+launch_kraken_logger       # 4. kraken_logger.py
+launch_telemetry_logger    # 5. telemetry_logger.py
+launch_command_listener    # 6. command_listener.py
+launch_fusion_sender       # 7. fusion_sender.py
+launch_main_controller     # 8. main_controller.py
+launch_system_controller   # 9. system_controller.py
+launch_fc_mode_controller  # 10. fc_mode_controller.py
+launch_mavproxy            # 11. ngcp-mavproxy-autostart
+launch_mavproxy_telemetry  # 12. ngcp-mavproxy-telemetry.sh
+launch_mission1_waypoint   # 13. mission1_waypoint.py
+launch_firefox_kraken_ui   # 14. Firefox → http://0.0.0.0:8080
+
+
+
+#launch_kraken_logger       # 2. kraken_logger.py
+#launch_command_listener    # 3. command_listener.py             (default  5 s delay)
+#launch_mavproxy            # 4. ngcp-mavproxy-autostart
+#launch_mavproxy_telemetry  # 5. ngcp-mavproxy-telemetry.sh
+#launch_telemetry_logger    # 6. telemetry_logger.py             (default 10 s delay)
+#launch_firefox_kraken_ui   # 7. Firefox → http://0.0.0.0:8080  (default 10 s delay)
+
 
 # Keep the launcher process alive so GNOME doesn't reap child terminals
 wait
