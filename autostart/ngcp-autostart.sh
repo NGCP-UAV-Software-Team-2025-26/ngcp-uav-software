@@ -48,14 +48,8 @@ launch_kraken_doa() {
     cd "$KRAKEN_DIR" && sudo ./kraken_doa_start.sh &
 }
 
-# 2. Firefox pointing at the KrakenSDR web UI
-launch_firefox_kraken_ui() {
-    local delay="${1:-10}"   # wait for the DOA backend to bind its port
-    sleep "$delay"
-    xdg-open "http://0.0.0.0:8080" &
-}
 
-# 3. Kraken data logger (Python, keeps terminal open)
+# 2. Kraken data logger (Python, keeps terminal open)
 launch_kraken_logger() {
     local delay="${1:-0}"
     sleep "$delay"
@@ -63,7 +57,7 @@ launch_kraken_logger() {
         "python3 $UAV_SRC/loggers/kraken_logger.py" &
 }
 
-# 4. Ground-station command listener (Python, keeps terminal open)
+# 3. Ground-station command listener (Python, keeps terminal open)
 launch_command_listener() {
     local delay="${1:-5}"   # brief pause so logger is up first
     sleep "$delay"
@@ -71,14 +65,14 @@ launch_command_listener() {
         "python3 $UAV_SRC/comms/command_listener.py" &
 }
 
-# 5. MAVProxy autostart binary (no terminal window)
+# 4. MAVProxy autostart binary (no terminal window)
 launch_mavproxy() {
     local delay="${1:-0}"
     sleep "$delay"
     /home/ngcp25/.local/bin/ngcp-mavproxy-autostart &
 }
 
-# 6. MAVProxy telemetry pipeline (keeps terminal open)
+# 5. MAVProxy telemetry pipeline (keeps terminal open)
 launch_mavproxy_telemetry() {
     local delay="${1:-0}"
     sleep "$delay"
@@ -87,7 +81,7 @@ launch_mavproxy_telemetry() {
         "$MAVPROXY_TELEMETRY_SCRIPT" &
 }
 
-# 7. Telemetry data logger (Python, keeps terminal open)
+# 6. Telemetry data logger (Python, keeps terminal open)
 launch_telemetry_logger() {
     local delay="${1:-10}"  # wait for telemetry pipeline to be ready
     sleep "$delay"
@@ -95,17 +89,24 @@ launch_telemetry_logger() {
         "python3 $UAV_SRC/loggers/telemetry_logger.py" &
 }
 
+# 7. Firefox pointing at the KrakenSDR web UI
+launch_firefox_kraken_ui() {
+    local delay="${1:-20}"   # wait for the DOA backend to bind its port
+    sleep "$delay"
+    xdg-open "http://0.0.0.0:8080" &
+}
+
 # ── Launch sequence ────────────────────────────────────────────────────────────
 # TO REORDER: move lines here. Each call is independent of function order above.
 # Optional per-call delay argument (seconds) overrides the function default.
 
 launch_kraken_doa          # 1. KrakenSDR DOA backend
-launch_firefox_kraken_ui   # 2. Firefox → http://0.0.0.0:8080  (default 10 s delay)
-launch_kraken_logger       # 3. kraken_logger.py
-launch_command_listener    # 4. command_listener.py             (default  5 s delay)
-launch_mavproxy            # 5. ngcp-mavproxy-autostart
-launch_mavproxy_telemetry  # 6. ngcp-mavproxy-telemetry.sh
-launch_telemetry_logger    # 7. telemetry_logger.py             (default 10 s delay)
+launch_kraken_logger       # 2. kraken_logger.py
+launch_command_listener    # 3. command_listener.py             (default  5 s delay)
+launch_mavproxy            # 4. ngcp-mavproxy-autostart
+launch_mavproxy_telemetry  # 5. ngcp-mavproxy-telemetry.sh
+launch_telemetry_logger    # 6. telemetry_logger.py             (default 10 s delay)
+launch_firefox_kraken_ui   # 7. Firefox → http://0.0.0.0:8080  (default 10 s delay)
 
 # Keep the launcher process alive so GNOME doesn't reap child terminals
 wait
