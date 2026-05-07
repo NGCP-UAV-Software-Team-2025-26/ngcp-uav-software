@@ -45,7 +45,7 @@ open_terminal() {
 launch_kraken_doa() {
     local delay="${1:-0}"
     sleep "$delay"
-    sudo bash "$KRAKEN_DIR/kraken_doa_start.sh" &
+    cd "$KRAKEN_DIR" && sudo ./kraken_doa_start.sh &
 }
 
 # 2. Firefox pointing at the KrakenSDR web UI
