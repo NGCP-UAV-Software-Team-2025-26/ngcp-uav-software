@@ -112,12 +112,12 @@ launch_system_controller() {
         "python3 $UAV_SRC/uav/system_controller.py" &
 }
 
-# 8. Flight controller mode controller
-launch_fc_mode_controller() {
+# 8. Flight controller mode listener
+launch_fc_mode_listener() {
     local delay="${1:-0}"
     sleep "$delay"
-    open_terminal "FC Mode Controller" \
-        "python3 $UAV_SRC/uav/fc_mode_controller.py" &
+    open_terminal "FC Mode Listener" \
+        "python3 $UAV_SRC/uav/fc_mode_listener.py" &
 }
 
 
@@ -165,7 +165,7 @@ launch_command_listener    # 6. command_listener.py
 launch_fusion_sender       # 7. fusion_sender.py
 launch_main_controller     # 8. main_controller.py
 launch_system_controller   # 9. system_controller.py
-launch_fc_mode_controller  # 10. fc_mode_controller.py
+launch_fc_mode_listener    # 10. fc_mode_listener.py
 launch_mavproxy            # 11. ngcp-mavproxy-autostart
 launch_mavproxy_telemetry  # 12. ngcp-mavproxy-telemetry.sh
 launch_mission1_waypoint   # 13. mission1_waypoint.py
