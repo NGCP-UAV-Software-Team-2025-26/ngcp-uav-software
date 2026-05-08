@@ -4,6 +4,8 @@ import time
 import json
 from pathlib import Path
 from datetime import datetime, timezone
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.nav_state_utils import update_nav_state
 
