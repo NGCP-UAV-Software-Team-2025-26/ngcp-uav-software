@@ -88,12 +88,20 @@ launch_command_listener() {
         "python3 $UAV_SRC/comms/command_listener.py" &
 }
 
-# 6.5 Fusion sender
-launch_fusion_sender() {
+# Fusion sender
+# launch_fusion_sender() {
+#     local delay="${1:-0}"
+#     sleep "$delay"
+#     open_terminal "Fusion Sender" \
+#         "python3 $UAV_SRC/comms/fusion_sender.py" &
+# }
+
+# mra info sender
+launch_info_sender() {
     local delay="${1:-0}"
     sleep "$delay"
-    open_terminal "Fusion Sender" \
-        "python3 $UAV_SRC/comms/fusion_sender.py" &
+    open_terminal "MRA Info Sender" \
+        "python3 $UAV_SRC/comms/mra_info_sender.py" &
 }
 
 # 9. Main controller
@@ -162,7 +170,8 @@ launch_fusion_logger       # 3. fusion_logger.py
 launch_kraken_logger       # 4. kraken_logger.py
 launch_telemetry_logger    # 5. telemetry_logger.py
 launch_command_listener    # 6. command_listener.py
-launch_fusion_sender       # 7. fusion_sender.py
+#launch_fusion_sender       # 7. fusion_sender.py
+launch_info_sender
 launch_main_controller     # 8. main_controller.py
 launch_system_controller   # 9. system_controller.py
 launch_fc_mode_listener    # 10. fc_mode_listener.py
