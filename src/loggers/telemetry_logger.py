@@ -54,7 +54,7 @@ async def wait_connected(drone: System):
 
     async for state in drone.core.connection_state():
         if state.is_connected:
-            print("Connected to PX4")
+            print("Connected to Ardupilot")
             return
         
 async def wait_position_ok(drone: System):
@@ -144,7 +144,7 @@ async def main():
                         f.close()
                         f = None
                     logging_enabled = False
-                    update_state("telemetry_log", None)
+                    # update_state("telemetry_log", "None") #Commented out so the path isn't lost
                     print(f"STOP_LOG: closed {out_file}")
                     out_file = None
 

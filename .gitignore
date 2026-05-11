@@ -56,5 +56,5 @@ CATKIN_IGNORE
 *.tlog.raw
 *.parm
 
-/src/comms/debug.py
-/src/comms/heartbeattest.py
+src/comms/debug.py
+src/comms/heartbeattest.py

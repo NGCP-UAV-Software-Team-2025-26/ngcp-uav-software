@@ -3,22 +3,31 @@ import json
 import math
 import time
 import subprocess
+import logging
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from state.mission_state_utils import load_state, update_state
 from state.nav_state_utils import load_nav_state, update_nav_state
 
-#######################################################################################################################################
-### JUST AS A NOTE, THIS WAYPOINT SYSTEM WILL ONLY WORK IF THE SEARCH AREA IS A **CONVEX** QUADRILATERAL. IT WILL NOT WORK FOR CONCAVE. 
-#######################################################################################################################################
 
 STANDBY_INTERVAL_S = 1.0    # Polling interval while waiting for autonomy_active (s)
 
 # MISSION 1 CONFIGURATION
-MAX_TURN_ANGLE_DEG = 35.0   # Max heading change at any waypoint (deg)
-WAYPOINT_RADIUS_M  = 20.0   # Capture radius: advance to next WP within this distance (m)
-BORDER_CLEARANCE_M = 50.0   # Diamond corners must be at least this far from search border (m)    ###################### Adjust this as necessary
+MIN_TURN_ANGLE_DEG      = 15.0   # Minimum heading change per waypoint segment (deg)
+WAYPOINT_RADIUS_FT      = 20.0   # Waypoint capture radius (ft)  ~20 m (# Capture radius: advance to next WP within this distance (ft))
+BORDER_CLEARANCE_FT     = 50.0  # Minimum clearance from boundary (ft)     ###################### Adjust this as necessary)
+STRAIGHT_SPACING_FACTOR = 5.0    # Waypoint spacing on straights = factor × R
+CURVATURE_SPACING_FACTOR= 0.5    # Waypoint spacing on tight curves = factor × R
+CURVATURE_SENSITIVITY   = 2.0    # Higher = denser waypoints near turns
+MAXIMUM_WAYPOINTS       = 30     # Hard cap on waypoints written to JSON (0 = no limit)
+
+FT_TO_M              = 0.3048
+BORDER_CLEARANCE_M   = BORDER_CLEARANCE_FT   * FT_TO_M
+WAYPOINT_RADIUS_M    = WAYPOINT_RADIUS_FT    * FT_TO_M
+# Min chord length from turning angle: chord = 2R·sin(θ/2), but without explicit R
+# we derive a minimum spacing floor from the ellipse semi-minor at runtime (see sample_ellipse_waypoints)
+
 L1_DISTANCE_M      = 30.0   # L1 guidance lookahead distance (m)
 UPDATE_INTERVAL_S  = 0.1    # Guidance loop polling interval (s)
 GENERATE_IMAGE     = True   # Toggle PNG map generation (True / False)
@@ -27,6 +36,14 @@ CRUISE_ALT_FT      = 200.0  # Cruise altitude written into active_plan.alt_ft (f
 
 EARTH_RADIUS_M = 6_371_000.0
 
+
+
+log = logging.getLogger("mission_waypoint")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 # Geodetic helpers
 
@@ -143,172 +160,226 @@ def shrink_vertex_to_clearance(cx, cy, vx, vy, poly, clearance_m):
     # lo is the furthest safe position
     return cx + lo*dx, cy + lo*dy
 
-
-# --------------------------------------------------------------
-# Corner rounding: entry / apex / exit per shrunk diamond vertex
-# --------------------------------------------------------------
-
-def make_corner_waypoints(prev_v, curr_v, next_v):
-    """
-    Given three consecutive shrunk-diamond vertices, compute the three
-    waypoints that round the corner at curr_v:
-
-        entry  — on the incoming leg, set back from curr_v
-        apex   — midpoint between entry and exit (crown of the arc)
-        exit   — on the outgoing leg, set back from curr_v
-
-    The set-back is chosen so the heading change from  prev→entry  to
-    entry→apex  does not exceed MAX_TURN_ANGLE_DEG.  If the full turn is
-    already within the limit, all three collapse to curr_v (no rounding).
-
-    The set-back distance scales with WAYPOINT_RADIUS_M so that shrinking
-    the diamond automatically shrinks the rounding geometry.
-    """
-    in_dx  = curr_v[0] - prev_v[0]
-    in_dy  = curr_v[1] - prev_v[1]
-    out_dx = next_v[0] - curr_v[0]
-    out_dy = next_v[1] - curr_v[1]
-
-    in_len  = math.hypot(in_dx,  in_dy)
-    out_len = math.hypot(out_dx, out_dy)
-
-    if in_len < 1e-9 or out_len < 1e-9:
-        return curr_v, curr_v, curr_v
-
-    in_ang  = math.degrees(math.atan2(in_dy,  in_dx))
-    out_ang = math.degrees(math.atan2(out_dy, out_dx))
-    turn    = normalize_angle(out_ang - in_ang)
-
-    if abs(turn) <= MAX_TURN_ANGLE_DEG:
-        # Turn is gentle enough — use the vertex itself as the single waypoint
-        return curr_v, curr_v, curr_v
-
-    # Set-back distance: use WAYPOINT_RADIUS_M as the rounding radius.
-    # For a turn of |turn| degrees the set-back along each leg is:
-    #   set_back = radius / tan(|turn|/2)
-    half_turn_rad = math.radians(abs(turn) / 2.0)
-    set_back = WAYPOINT_RADIUS_M / math.tan(half_turn_rad) if half_turn_rad > 1e-6 else 0.0
-
-    # Clamp so we never overshoot the midpoint of the incoming/outgoing leg
-    set_back = min(set_back, in_len * 0.45, out_len * 0.45)
-
-    # Entry: walk set_back metres back along the incoming leg from curr_v
-    entry = (curr_v[0] - (in_dx / in_len) * set_back,
-             curr_v[1] - (in_dy / in_len) * set_back)
-
-    # Exit: walk set_back metres forward along the outgoing leg from curr_v
-    exit_ = (curr_v[0] + (out_dx / out_len) * set_back,
-             curr_v[1] + (out_dy / out_len) * set_back)
-
-    # Apex: geometric midpoint of entry and exit
-    apex  = ((entry[0] + exit_[0]) / 2.0,
-             (entry[1] + exit_[1]) / 2.0)
-
-    return entry, apex, exit_
-
-
 # ---------------------
-# Full diamond pipeline
+# Ellipse path pipeline
 # ---------------------
 
-def build_diamond(search_coords):
+def convex_hull(pts):
+    """Graham scan → clockwise-ordered convex hull."""
+    pts = sorted(set(pts))
+    if len(pts) <= 1:
+        return pts
+    def cross(o, a, b):
+        return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0: lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0: upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
+
+
+def fit_oriented_ellipse(hull_xy):
+    cx, cy = centroid(hull_xy)
+    dx = [p[0]-cx for p in hull_xy]
+    dy = [p[1]-cy for p in hull_xy]
+    n  = len(hull_xy)
+    cxx = sum(x*x for x in dx) / n
+    cxy = sum(dx[i]*dy[i] for i in range(n)) / n
+    cyy = sum(y*y for y in dy) / n
+    trace = cxx + cyy
+    det   = cxx*cyy - cxy*cxy
+    l1    = trace/2 + math.sqrt(max(0.0, (trace/2)**2 - det))
+    angle = math.atan2(l1 - cxx, cxy) if abs(cxy) > 1e-9 else (0.0 if cxx >= cyy else math.pi/2)
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    # Bounding extent in PCA frame — ellipse starts larger than hull, then gets shrunk
+    u_coords = [abs( (p[0]-cx)*cos_a + (p[1]-cy)*sin_a) for p in hull_xy]
+    v_coords = [abs(-(p[0]-cx)*sin_a + (p[1]-cy)*cos_a) for p in hull_xy]
+    a = max(u_coords) if u_coords else 1.0
+    b = max(v_coords) if v_coords else 1.0
+    if a < b:
+        a, b = b, a
+        angle = angle + math.pi/2
+
+    # # Scale down uniformly until ellipse is fully inside hull (all 360 sample pts inside)
+    # def ellipse_max_overshoot(s):
+    #     """Returns how far outside the hull the scaled ellipse reaches (0 = fully inside)."""
+    #     outside = 0.0
+    #     for i in range(360):
+    #         t  = 2*math.pi*i/360
+    #         lx = s*a*math.cos(t); ly = s*b*math.sin(t)
+    #         px = cx + lx*cos_a - ly*sin_a
+    #         py = cy + lx*sin_a + ly*cos_a
+    #         # Point is outside hull if it is beyond every hull edge (negative inward dist)
+    #         d = min_dist_to_poly_edges(px, py, hull_xy)
+    #         # Check if point is inside hull using winding — approximate via signed clearance
+    #         # We use: if the point's nearest-edge distance is positive and point is outside, flag it.
+    #         # Simpler: check if point projects outside any hull edge (cross product sign).
+    #         nh = len(hull_xy)
+    #         inside = True
+    #         for j in range(nh):
+    #             ax, ay = hull_xy[j]; bx, by = hull_xy[(j+1)%nh]
+    #             cross = (bx-ax)*(py-ay) - (by-ay)*(px-ax)
+    #             if cross > 0:   # CW hull: outside if cross > 0
+    #                 inside = False
+    #                 outside = max(outside, cross / (math.hypot(bx-ax, by-ay) + 1e-12))
+    #                 break
+    #     return outside
+    # lo, hi = 0.0, 1.0
+    # for _ in range(52):
+    #     mid = (lo + hi) / 2
+    #     if ellipse_max_overshoot(mid) == 0.0: lo = mid
+    #     else:                                  hi = mid
+    # a, b = lo*a, lo*b
+    return cx, cy, a, b, angle
+
+
+def shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy):
     """
-    Step 1  Convert 4 search-area corners to local-metre frame.
-    Step 2  Sort corners clockwise.
-    Step 3  Midpoint of each edge → raw diamond (4 vertices ON the border).
-    Step 4  Shrink each raw vertex inward along centroid→vertex ray until
-            its distance to every search-area edge >= BORDER_CLEARANCE_M.
-    Step 5  Round each shrunk vertex with entry/apex/exit waypoints so the
-            heading change never exceeds MAX_TURN_ANGLE_DEG.
-
-    Returns
-    -------
-    waypoints_ll   [(lat,lon)]          ordered flight sequence (clockwise)
-    search_xy      [(x,y)]             search area corners, local m, clockwise
-    raw_diam_xy    [(x,y)]             raw diamond (step 3) — on the border
-    shrunk_diam_xy [(x,y)]             shrunk diamond (step 4) — inside border
-    wp_xy          [(x,y)]             waypoints, local m (same order as waypoints_ll)
-    corner_triples [((x,y),(x,y),(x,y))] (entry, apex, exit) per corner
-    o_lat, o_lon   float               local frame origin
+    Binary-search scale s so the ellipse is fully inside the hull
+    AND every point is >= BORDER_CLEARANCE_M from every hull edge.
     """
-    o_lat = sum(p[0] for p in search_coords) / 4
-    o_lon = sum(p[1] for p in search_coords) / 4
+    print(f"[ELLIPSE] Raw inscribed axes: a={a:.1f} m, b={b:.1f} m, clearance={BORDER_CLEARANCE_M:.1f} m")
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    
+    nh = len(hull_xy)
 
-    local_pts = [to_local(lat, lon, o_lat, o_lon) for lat, lon in search_coords]
-    search_xy = sort_clockwise(local_pts)
+    def point_inside_hull(px, py):
+        """True if point is inside or on the convex hull (works for CW or CCW)."""
+        signs = []
+        for j in range(nh):
+            ax, ay = hull_xy[j]
+            bx, by = hull_xy[(j+1) % nh]
+            cross = (bx-ax)*(py-ay) - (by-ay)*(px-ax)
+            signs.append(cross)
+        return all(s <= 0 for s in signs) or all(s >= 0 for s in signs)
 
-    # Step 3 — edge midpoints, these sit exactly on the search-area boundary
-    n = len(search_xy)
-    raw_diam_xy = [
-        ((search_xy[i][0] + search_xy[(i+1)%n][0]) / 2.0,
-         (search_xy[i][1] + search_xy[(i+1)%n][1]) / 2.0)
-        for i in range(n)
-    ]
+    def min_clearance(s):
+        min_d = float('inf')
+        for i in range(720):
+            t  = 2*math.pi*i/720
+            lx = s*a*math.cos(t); ly = s*b*math.sin(t)
+            px = cx + lx*cos_a - ly*sin_a
+            py = cy + lx*sin_a + ly*cos_a
+            if not point_inside_hull(px, py):
+                return -1.0          # outside hull — fail immediately
+            d  = min_dist_to_poly_edges(px, py, hull_xy)
+            if d < min_d: min_d = d
+        return min_d
+    
+    if min_clearance(1.0) >= BORDER_CLEARANCE_M:
+        return a, b
+    lo, hi = 0.0, 1.0
+    for _ in range(52):
+        mid = (lo + hi) / 2
+        if min_clearance(mid) >= BORDER_CLEARANCE_M: lo = mid
+        else:                                         hi = mid
+    print(f"[ELLIPSE] Shrunk axes: a={lo*a:.1f} m, b={lo*b:.1f} m")
+    return lo*a, lo*b
 
-    # Step 4 — shrink each vertex inward to BORDER_CLEARANCE_M from the boundary
-    dc_x, dc_y = centroid(raw_diam_xy)
-    shrunk_diam_xy = [
-        shrink_vertex_to_clearance(dc_x, dc_y, vx, vy, search_xy, BORDER_CLEARANCE_M)
-        for vx, vy in raw_diam_xy
-    ]
 
-    # Step 5 — rounded corners
-    nd = len(shrunk_diam_xy)
-    corner_triples = [
-        make_corner_waypoints(
-            shrunk_diam_xy[(i-1) % nd],
-            shrunk_diam_xy[i],
-            shrunk_diam_xy[(i+1) % nd],
-        )
-        for i in range(nd)
-    ]
+def ellipse_curvature(a, b, t):
+    """κ(t) of ellipse at parameter t."""
+    denom = (b*b*math.cos(t)**2 + a*a*math.sin(t)**2) ** 1.5
+    return (a*b) / denom if denom > 1e-12 else 0.0
 
-    # Flatten into flight sequence, collapsing identical triples to one point
-    wp_xy = []
-    for entry, apex, exit_ in corner_triples:
-        if entry == apex == exit_:
-            wp_xy.append(apex)
-        else:
-            wp_xy.append(entry)
-            wp_xy.append(apex)
-            wp_xy.append(exit_)
 
+def sample_ellipse_waypoints(cx, cy, a, b, angle):
+    """
+    Two-pass curvature-aware sampling.
+    Pass 1: compute total arc length.
+    Pass 2: adaptive spacing, base = arc_len / MAXIMUM_WAYPOINTS,
+            floor = chord subtending MIN_TURN_ANGLE_DEG at local curvature.
+    """
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    min_angle_rad = math.radians(MIN_TURN_ANGLE_DEG)
+    dt = 2*math.pi / 3600
+    arc_len = sum(math.hypot(-a*math.sin(t), b*math.cos(t)) * dt
+                  for t in (i*dt for i in range(3600)))
+    max_count = MAXIMUM_WAYPOINTS if MAXIMUM_WAYPOINTS > 0 else 50
+    base_sp = arc_len / max_count
+    print(f"[ELLIPSE] arc_len={arc_len:.1f} m, base_sp={base_sp:.1f} m, targeting {max_count} WPs")
+    pts, accum, t = [], 0.0, 0.0
+    while t < 2*math.pi:
+        kappa   = ellipse_curvature(a, b, t)
+        R_local = 1.0 / kappa if kappa > 1e-6 else 1e6
+        min_sp  = 2.0 * R_local * math.sin(min_angle_rad / 2.0)
+        curved_sp = base_sp / (1.0 + CURVATURE_SENSITIVITY * kappa * R_local)
+        spacing = max(min_sp, min(base_sp, curved_sp))
+        accum  += math.hypot(-a*math.sin(t), b*math.cos(t)) * dt
+        if accum >= spacing:
+            lx = a*math.cos(t); ly = b*math.sin(t)
+            pts.append((cx + lx*cos_a - ly*sin_a, cy + lx*sin_a + ly*cos_a))
+            accum = 0.0
+        t += dt
+    return pts
+
+
+def downsample_waypoints(wp_xy, max_count):
+    """Evenly subsample wp_xy to at most max_count points, preserving order."""
+    n = len(wp_xy)
+    if max_count <= 0 or n <= max_count:
+        return wp_xy
+    indices = [round(i * n / max_count) % n for i in range(max_count)]
+    return [wp_xy[i] for i in indices]
+
+
+def build_ellipse_path(search_coords):
+    n = len(search_coords)
+    if not (3 <= n <= 6):
+        raise ValueError(f"search_area must have 3-6 entries, got {n}")
+    o_lat = sum(p[0] for p in search_coords) / n
+    o_lon = sum(p[1] for p in search_coords) / n
+    local_pts  = [to_local(lat, lon, o_lat, o_lon) for lat, lon in search_coords]
+    hull_xy    = convex_hull(local_pts)
+    cx, cy, a, b, angle = fit_oriented_ellipse(hull_xy)
+    a_s, b_s   = shrink_ellipse_to_clearance(cx, cy, a, b, angle, hull_xy)
+    wp_xy      = sample_ellipse_waypoints(cx, cy, a_s, b_s, angle)
+    wp_xy      = downsample_waypoints(wp_xy, MAXIMUM_WAYPOINTS)
     waypoints_ll = [from_local(x, y, o_lat, o_lon) for x, y in wp_xy]
-
-    return (waypoints_ll, search_xy, raw_diam_xy, shrunk_diam_xy,
-            wp_xy, corner_triples, o_lat, o_lon)
-
+    ellipse_params = (cx, cy, a, b, a_s, b_s, angle)
+    return waypoints_ll, hull_xy, ellipse_params, wp_xy, o_lat, o_lon
 
 # -------------------------------------------------
 # Fusion-log reader — reads last line of JSONL file
 # -------------------------------------------------
 
-def read_latest_telemetry(fusion_log_path):
-    path = Path(fusion_log_path)
-    if not path.exists():
-        print(f"[WARN] Fusion log not found: {path}")
+def read_latest_telemetry(fusion_log_path: str):
+    if not fusion_log_path:
+        print("[WARN] No fusion_log path in mission_state")
         return None
-    try:
-        with open(path, "rb") as f:
-            f.seek(0, 2)
-            size = f.tell()
-            if size == 0:
-                return None
-            buf, pos = b"", size - 1
-            while pos >= 0:
-                f.seek(pos)
-                ch = f.read(1)
-                if ch == b"\n" and buf.strip():
-                    break
-                buf = ch + buf
-                pos -= 1
-            line = buf.decode("utf-8", errors="replace").strip()
-            if line:
-                return json.loads(line)
-    except Exception as e:
-        print(f"[WARN] Could not read fusion log: {e}")
-    return None
 
+    path = Path(fusion_log_path)
+
+    if not path.exists():
+        print(f"[WARN] Fusion log does not exist: {path}")
+        return None
+
+    try:
+        lines = path.read_text().splitlines()
+    except Exception as exc:
+        print(f"[WARN] Could not read fusion log file: {exc}")
+        return None
+
+    # Read from newest to oldest, skipping corrupted / partial lines
+    for line in reversed(lines):
+        line = line.strip()
+
+        if not line:
+            continue
+
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if "lat_deg" in data and "lon_deg" in data:
+            return data
+
+    print("[WARN] No valid telemetry line with lat_deg/lon_deg found in fusion log")
+    return None
 
 # --------------------------
 # Closest waypoint selection
@@ -369,25 +440,25 @@ def _write_png(filename, width, height, pixels):
         f.write(data)
 
 
-def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
-                       corner_triples, plane_lat, plane_lon, start_wp_idx,
+def generate_map_image(hull_xy, ellipse_params, wp_xy,
+                       plane_lat, plane_lon, start_wp_idx,
                        o_lat, o_lon, filename="mission1_map.png"):
+    cx, cy, a_raw, b_raw, a_s, b_s, angle = ellipse_params
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+
     """
     Renders:
-      • Search-area quadrilateral border        (dim yellow)
-      • Raw diamond (edge midpoints)            (dim grey, dashed-style)
-      • Shrunk diamond                          (white)
-      • Rounded flight path arrows WP→WP       (cyan)
-      • Entry/apex/exit dots per corner         (yellow)
-      • Active start waypoint highlight         (orange ring)
-      • Plane position                          (green filled circle)
-      • Arrow: plane → first waypoint           (green)
+      • Search boundary border                  (yellow)
+      • Original fitted ellipse                 (white)
+      • Shrunk/clearance ellipse + flight path  (cyan)
+      • Plane position                          (green filled dot)
+      • Arrow: plane → nearest waypoint         (green)
     """
     W, H, PAD = 800, 800, 70
 
     plane_x, plane_y = to_local(plane_lat, plane_lon, o_lat, o_lon)
 
-    all_xy = list(search_xy) + list(shrunk_diam_xy) + list(wp_xy) + [(plane_x, plane_y)]
+    all_xy = list(hull_xy) + list(wp_xy) + [(plane_x, plane_y)]
     min_x = min(p[0] for p in all_xy)
     max_x = max(p[0] for p in all_xy)
     min_y = min(p[1] for p in all_xy)
@@ -470,50 +541,46 @@ def generate_map_image(search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
 
     # --- draw layers (back to front) ---
 
-    # Search-area border
-    n = len(search_xy)
-    for i in range(n):
-        ax, ay = to_px(*search_xy[i])
-        bx, by = to_px(*search_xy[(i+1)%n])
-        draw_line(ax, ay, bx, by, (160, 150, 50), 1)
+    def draw_ellipse_outline(aa, bb, color, dashed=False, steps=180):
+        pts = []
+        for i in range(steps):
+            t  = 2*math.pi*i/steps
+            lx = aa*math.cos(t); ly = bb*math.sin(t)
+            pts.append(to_px(cx + lx*cos_a - ly*sin_a,
+                              cy + lx*sin_a + ly*cos_a))
+        if dashed:
+            dash, gap = 8, 6
+            for i in range(len(pts)):
+                x0,y0 = pts[i]; x1,y1 = pts[(i+1)%len(pts)]
+                if i % (dash+gap) < dash:
+                    draw_line(x0, y0, x1, y1, color, 1)
+        else:
+            for i in range(len(pts)):
+                draw_line(*pts[i], *pts[(i+1)%len(pts)], color, 1)
 
-    # Raw diamond (dashed grey) — shows where midpoints fall before shrinking
-    draw_dashed_poly(raw_diam_xy, (80, 80, 90))
+    # Search boundary border (yellow)
+    nh = len(hull_xy)
+    for i in range(nh):
+        draw_line(*to_px(*hull_xy[i]), *to_px(*hull_xy[(i+1)%nh]), (220, 200, 50), 2)
 
-    # Shrunk diamond outline (solid white)
-    nd = len(shrunk_diam_xy)
-    for i in range(nd):
-        ax, ay = to_px(*shrunk_diam_xy[i])
-        bx, by = to_px(*shrunk_diam_xy[(i+1)%nd])
-        draw_line(ax, ay, bx, by, (200, 200, 210), 1)
+    # Original fitted ellipse (white)
+    draw_ellipse_outline(a_raw, b_raw, (210, 210, 210))
 
-    # Flight path arrows between consecutive waypoints (cyan)
+    # Shrunk ellipse + flight path arrows (cyan)
+    draw_ellipse_outline(a_s, b_s, (0, 190, 215))
     nw = len(wp_xy)
     for i in range(nw):
         ax, ay = to_px(*wp_xy[i])
         bx, by = to_px(*wp_xy[(i+1)%nw])
         draw_arrow(ax, ay, bx, by, (0, 190, 215), 10, 2)
 
-    # Entry / apex / exit dots per corner
-    for entry, apex, exit_ in corner_triples:
-        if entry == apex == exit_:
-            px, py = to_px(*apex)
-            draw_circle(px, py, 5, (255, 210, 0), fill=True)
-        else:
-            for pt, col in ((entry, (255, 160, 0)), (apex, (255, 210, 0)), (exit_, (255, 160, 0))):
-                px, py = to_px(*pt)
-                draw_circle(px, py, 4, col, fill=True)
-
-    # Start-waypoint orange highlight ring
-    sx, sy = to_px(*wp_xy[start_wp_idx])
-    draw_circle(sx, sy, 13, (255, 90, 30))
-    draw_circle(sx, sy, 14, (255, 90, 30))
-
     # Plane (green filled dot)
     ppx, ppy = to_px(plane_x, plane_y)
     draw_circle(ppx, ppy, 7, (40, 230, 90), fill=True)
 
-    # Arrow: plane → start waypoint
+    # Green arrow: plane → nearest waypoint (first in ordered list plane will go to)
+    start_wp_idx = max(0, min(start_wp_idx, len(wp_xy) - 1))
+    sx, sy = to_px(*wp_xy[start_wp_idx])
     draw_arrow(ppx, ppy, sx, sy, (40, 230, 90), 12, 2)
 
     _write_png(filename, W, H, pixels)
@@ -529,20 +596,29 @@ def run_mission_1():
     # ------------------------------------------------------------------
     # Standby — wait until mission_state.json autonomy_active is True
     # ------------------------------------------------------------------
-    print("[MISSION 1] Standby … waiting for autonomy_active …")
-    while True:
-        mission_state = load_state()
-        if mission_state.get("autonomy_active", False):
-            print("[MISSION 1] autonomy_active = True — proceeding.")
-            break
-        time.sleep(STANDBY_INTERVAL_S)
+    # print("[MISSION 1] Standby … waiting for autonomy_active …")
+    # while True:
+    #     mission_state = load_state()
+    #     controller_status = mission_state.get("controller_status", {})
+    #     if controller_status.get("autonomy_active", False):
+    #         print("[MISSION 1] autonomy_active = True — proceeding.")
+    #         break
+    #     time.sleep(STANDBY_INTERVAL_S)
 
     mission_state = load_state()
-    nav_state     = load_nav_state()
+    while True:
+        nav = load_nav_state()
+        raw_search = nav.get("search_area", [])
 
-    raw_search = nav_state.get("search_area", [])
-    if len(raw_search) != 4:
-        raise ValueError(f"search_area must have 4 entries, got {len(raw_search)}")
+        if isinstance(raw_search, list) and 3 <= len(raw_search) <= 6:
+            break
+
+        if isinstance(raw_search, list) and len(raw_search) == 0:
+            print("[MISSION 1] Waiting for search_area from GCS...")
+        else:
+            print(f"[MISSION 1] Invalid search_area. Need 3–6 points, got: {raw_search}")
+
+        time.sleep(1.0)
 
     search_coords = []
     for entry in raw_search:
@@ -550,7 +626,6 @@ def run_mission_1():
             raise ValueError(f"Invalid search_area entry: {entry}")
         search_coords.append((float(entry[0]), float(entry[1])))
 
-    fusion_log_path = mission_state.get("fusion_log", "")
 
     # ------------------------------------------------------------------
     # Startup: write plan metadata & mission phase before anything else
@@ -562,15 +637,20 @@ def run_mission_1():
     update_nav_state("navigation", nav)
     print("[STATE] mission_phase → 1")
 
-    active_plan = nav_state.get("active_plan", {})
-    active_plan["plan_id"]   = 1
-    active_plan["plan_type"] = "Diamond Pattern"
-    active_plan["status"]    = "searching"
+    active_plan = {
+        "plan_id": 1,
+        "plan_type": "waypoint_pattern",
+        "label": "Ellipse Pattern",
+        "status": "building",
+        "waypoints": [],
+        "alt_ft": CRUISE_ALT_FT,
+    }
     update_nav_state("active_plan", active_plan)
+    
 
     update_nav_state("next_plan", 2)
 
-    print("[STATE] active_plan → plan_id=1, plan_type='Diamond Pattern', status='searching'")
+    print("[STATE] active_plan → plan_id=1, plan_type='Ellipse Pattern', status='building'")
     print("[STATE] next_plan   → 2")
 
     # Write cruise altitude into the nav state so mission 2+ can read it
@@ -578,20 +658,45 @@ def run_mission_1():
     print(f"[STATE] alt_ft → {CRUISE_ALT_FT} ft")
 
     # Build diamond and waypoints
-    (waypoints_ll, search_xy, raw_diam_xy, shrunk_diam_xy,
-     wp_xy, corner_triples, o_lat, o_lon) = build_diamond(search_coords)
+    (waypoints_ll, hull_xy, ellipse_params,
+      wp_xy, o_lat, o_lon) = build_ellipse_path(search_coords)
     
     # ------------------------------------------------------------------
     # Serialise the 12 waypoints into active_plan.waypoints
     # alt_m is read from active_plan.alt_m (already in the JSON)
     # ------------------------------------------------------------------
     nav_state   = load_nav_state()
+
+    nav = nav_state.get("navigation", {})
+    nav["mission_phase"] = 1
+    update_nav_state("navigation", nav)
+    print("[STATE] mission_phase → 1")
+
+    # Clear stale Mission 2 trigger
+    mra_refined = nav_state.get("mra_refined_loiter_target", {})
+    mra_refined.update({
+        "lat": None,
+        "lon": None,
+        "confidence": None,
+        "timestamp": None,
+        "fix_id": None,
+        "valid": False,
+    })
+    update_nav_state("mra_refined_loiter_target", mra_refined)
+    print("[STATE] mra_refined_loiter_target.valid → False")
     active_plan = nav_state.get("active_plan", {})
 
-    active_plan["waypoints"] = [
-        {"lat": lat, "lon": lon, "alt_ft": CRUISE_ALT_FT}
-        for lat, lon in waypoints_ll
-    ]
+    active_plan = {
+        "plan_id": 1,
+        "plan_type": "waypoint_pattern",
+        "label": "Ellipse Pattern",
+        "status": "ready",
+        "waypoints": [
+            {"lat": lat, "lon": lon, "alt_ft": CRUISE_ALT_FT}
+            for lat, lon in waypoints_ll
+        ],
+        "alt_ft": CRUISE_ALT_FT,
+    }
     update_nav_state("active_plan", active_plan)
     print(f"[STATE] active_plan.waypoints → {len(waypoints_ll)} entries written")
 
@@ -599,17 +704,43 @@ def run_mission_1():
     for i, (lat, lon) in enumerate(waypoints_ll):
         print(f"  WP{i}  lat={lat:.7f}  lon={lon:.7f}")
 
+    print("[MISSION 1] Plan is ready. Waiting for autonomy_active before live guidance …")
+    while True:
+        mission_state = load_state()
+        controller_status = mission_state.get("controller_status", {})
+
+        if controller_status.get("autonomy_active", False):
+            print("[MISSION 1] autonomy_active = True — entering live guidance.")
+            break
+
+        time.sleep(STANDBY_INTERVAL_S)
+
+    
+
     # Get initial telemetry
-    telem = read_latest_telemetry(fusion_log_path)
-    if telem is None:
-        raise RuntimeError(
-            "No telemetry available. Check fusion_log path in mission_state.json."
-        )
+    print("[MISSION 1] Waiting for initial valid fusion telemetry...")
+    while True:
+        mission_state = load_state()
+        fusion_log_path = mission_state.get("fusion_log", "")
+
+        telem = read_latest_telemetry(fusion_log_path)
+
+        if telem is not None:
+            plane_lat = telem.get("lat_deg")
+            plane_lon = telem.get("lon_deg")
+
+            if plane_lat is not None and plane_lon is not None:
+                break
+
+        print("[MISSION 1] No valid telemetry yet. Waiting...")
+        time.sleep(STANDBY_INTERVAL_S)
 
     plane_lat = telem["lat_deg"]
     plane_lon = telem["lon_deg"]
     plane_yaw = telem.get("yaw_deg", 0.0)
 
+    if not waypoints_ll:
+       raise RuntimeError("[MISSION 1] No waypoints generated — check build_ellipse_path output.")
     current_wp_idx = closest_wp_index(plane_lat, plane_lon, waypoints_ll)
     print(f"[NAV] Plane at ({plane_lat:.6f}, {plane_lon:.6f}) "
           f"→ starting on WP{current_wp_idx}")
@@ -619,8 +750,8 @@ def run_mission_1():
         try:
             img_path = Path(__file__).resolve().parent / "mission1_map.png"
             generate_map_image(
-                search_xy, raw_diam_xy, shrunk_diam_xy, wp_xy,
-                corner_triples, plane_lat, plane_lon, current_wp_idx,
+                hull_xy, ellipse_params, wp_xy,
+                plane_lat, plane_lon, current_wp_idx,
                 o_lat, o_lon, filename=str(img_path),
             )
         except Exception:
@@ -638,6 +769,9 @@ def run_mission_1():
 
     #mission_start = time.monotonic()
 
+    mission1_live_start = time.time()
+    MIN_MISSION1_RUN_TIME_S = 10.0
+
     try:
         while True:
             #---- timeout check ----------------------------------------
@@ -647,15 +781,23 @@ def run_mission_1():
             #        print(f"[MISSION 1] Timeout reached ({MISSION_TIMEOUT_S:.0f}s). Ending mission.")
             #        break
             #------------------------------------------------------------
+            mission_state = load_state()
+            fusion_log_path = mission_state.get("fusion_log", "")
 
             telem = read_latest_telemetry(fusion_log_path)
             if telem is None:
+                print("[MISSION 1] Waiting for valid fusion telemetry...")
                 time.sleep(UPDATE_INTERVAL_S)
                 continue
 
             plane_lat = telem["lat_deg"]
             plane_lon = telem["lon_deg"]
             plane_yaw = telem.get("yaw_deg", 0.0)
+
+            if plane_lat is None or plane_lon is None:
+                print("[MISSION 1] Fusion telemetry missing lat_deg/lon_deg. Waiting...")
+                time.sleep(UPDATE_INTERVAL_S)
+                continue
 
             wp_lat, wp_lon = waypoints_ll[current_wp_idx]
             dist_to_wp = haversine(plane_lat, plane_lon, wp_lat, wp_lon)
@@ -682,11 +824,23 @@ def run_mission_1():
             nav["guidance_waypoint"] = [guide_lat, guide_lon]
             update_nav_state("navigation", nav)
 
+            
             # Check exit condition — mra_refined_loiter_target.valid
             fresh = load_nav_state()
-            if fresh.get("mra_refined_loiter_target", {}).get("valid", False):
+            
+
+
+            target = fresh.get("mra_refined_loiter_target", {})
+
+            mission1_runtime = time.time() - mission1_live_start
+
+            if (
+                mission1_runtime >= MIN_MISSION1_RUN_TIME_S
+                and target.get("valid", False)
+            ):
                 print("[MISSION 1] Big Loiter coordinates received. Ending mission 1. Proceeding to Mission 2.")
                 break
+             
 
             time.sleep(UPDATE_INTERVAL_S)
 
@@ -705,8 +859,10 @@ def run_mission_1():
     print("[MISSION 1] Done. Launching mission2_waypoint.py …")
     mission2_path = Path(__file__).resolve().parent / "mission2_waypoint.py"
     if mission2_path.exists():
-        subprocess.Popen([sys.executable, str(mission2_path)])
+        proc = subprocess.Popen([sys.executable, str(mission2_path)])
         print(f"[HANDOFF] Launched {mission2_path}")
+        proc.wait()
+        sys.exit(0)
     else:
         print(f"[WARN] mission2_waypoint.py not found at {mission2_path} — skipping handoff.")
 
