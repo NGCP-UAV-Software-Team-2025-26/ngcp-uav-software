@@ -106,6 +106,12 @@ def mav_upload_mission_items(mav, items: list) -> None:
         t = msg.get_type()
         if t in ("MISSION_REQUEST", "MISSION_REQUEST_INT"):
             seq = msg.seq
+
+            if seq < 0 or seq >= len(items):
+                raise RuntimeError(
+                    f"Vehicle requested invalid mission seq={seq}, but only {len(items)} items exist"
+                )
+            
             item = items[seq]
 
             mav.mav.mission_item_int_send(
@@ -287,7 +293,8 @@ def mav_upload_plan(mav, plan: dict) -> None:
 
 
     mav_upload_mission_items(mav, items)
-    mav_set_current_mission_item(mav, 0)
+    # temp comment for debugging
+    # mav_set_current_mission_item(mav, 0)
 
 def mav_set_current_mission_item(mav, seq: int = 0) -> None:
     mav.mav.mission_set_current_send(
@@ -536,10 +543,18 @@ async def run():
         rel_alt = telemetry.get("rel_alt_m", 0.0)
         armed   = telemetry.get("armed", False)
 
+        reupload_requested = active_plan.get("reupload_requested", False)
+
         upload_condition = (
             plan_id is not None
-            and plan_status in ("ready", "error", "uploaded") # allow retry if error or upload if ready, but skip if already uploaded
-            and plan_id != last_executed_plan_id
+            and (
+                plan_status in ("ready", "error")
+                or reupload_requested
+            )
+            and (
+                plan_id != last_executed_plan_id
+                or reupload_requested
+            )
         )
 
         if upload_condition:
@@ -584,6 +599,7 @@ async def run():
                 update_nav_state("active_plan", {
                     **active_plan,
                     "status": "uploaded",
+                    "reupload_requested": False,
                 })
 
                 if autonomy_active and controller_status.get("safety_hold") is None:
