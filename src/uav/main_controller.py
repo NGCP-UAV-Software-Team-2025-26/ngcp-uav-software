@@ -107,28 +107,24 @@ def mav_upload_mission_items(mav, items: list) -> None:
         if t in ("MISSION_REQUEST", "MISSION_REQUEST_INT"):
             seq = msg.seq
             item = items[seq]
-            use_int = (t == "MISSION_REQUEST_INT")
 
-            if use_int:
-                mav.mav.mission_item_int_send(
-                    mav.target_system, mav.target_component, seq,
-                    item["frame"], item["command"],
-                    item["current"], item["autocontinue"],
-                    item["param1"], item["param2"],
-                    item["param3"], item["param4"],
-                    item["x"], item["y"], item["z"],
-                    mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
-                )
-            else:
-                mav.mav.mission_item_send(
-                    mav.target_system, mav.target_component, seq,
-                    item["frame"], item["command"],
-                    item["current"], item["autocontinue"],
-                    item["param1"], item["param2"],
-                    item["param3"], item["param4"],
-                    item["x"] / 1e7, item["y"] / 1e7, item["z"],
-                    mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
-                )
+            mav.mav.mission_item_int_send(
+            mav.target_system,
+            mav.target_component,
+            seq,
+            item["frame"],
+            item["command"],
+            item["current"],
+            item["autocontinue"],
+            item["param1"],
+            item["param2"],
+            item["param3"],
+            item["param4"],
+            item["x"],
+            item["y"],
+            item["z"],
+            mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
+        )
 
         elif t == "MISSION_ACK":
             ack = msg
