@@ -837,7 +837,7 @@ async def run():
         }
 
         if flight_mode in auto_modes:
-            if plan_status not in ("uploaded", "running"):
+            if plan_status not in ("uploaded", "running", "ready", "building"):
                 log.warning(
                     "AUTO/MISSION detected, but active_plan status is %s. "
                     "Not marking autonomy active because no valid mission is confirmed uploaded.",
