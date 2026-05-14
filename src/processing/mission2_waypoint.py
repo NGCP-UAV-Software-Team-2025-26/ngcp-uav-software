@@ -548,7 +548,7 @@ def run_mission_2():
         if (
             controller_status.get("autonomy_active", False)
             and active_plan.get("plan_id") == 2
-            and active_plan.get("status") in ("uploaded", "running")
+            and active_plan.get("status") in ("ready", "uploaded", "running")
         ):
             print("[MISSION 2] Mission 2 is active/running. Entering loiter monitoring.")
             break

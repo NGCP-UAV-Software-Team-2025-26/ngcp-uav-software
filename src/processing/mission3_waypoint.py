@@ -611,7 +611,7 @@ def run_mission_3():
         if (
             controller_status.get("autonomy_active", False)
             and active_plan.get("plan_id") == 3
-            and active_plan.get("status") in ("uploaded", "running")
+            and active_plan.get("status") in ("ready", "uploaded", "running")
         ):
             print("[MISSION 3] Mission 3 is active/running. Waiting for manual takeover.")
             break
