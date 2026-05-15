@@ -36,6 +36,8 @@ RTL_REASON_LOW_BATTERY = "low_battery_failsafe"
 RTL_REASON_AUTONOMY = "autonomy_safety_rtl"
 RTL_REASON_UNKNOWN = "unknown_external_rtl"
 RTL_REASON_MISSION_COMPLETE = "mission_complete_rtl"
+rtl_reason = RTL_REASON_MISSION_COMPLETE
+
 #From ARDUPILOT
 ARDUPLANE_MODES = {
     "MANUAL": 0, 
@@ -294,7 +296,7 @@ def mav_upload_plan(mav, plan: dict) -> None:
 
     mav_upload_mission_items(mav, items)
     # temp comment for debugging
-    # mav_set_current_mission_item(mav, 0)
+    mav_set_current_mission_item(mav, 0)
 
 def mav_set_current_mission_item(mav, seq: int = 0) -> None:
     mav.mav.mission_set_current_send(
@@ -303,6 +305,12 @@ def mav_set_current_mission_item(mav, seq: int = 0) -> None:
         seq,
     )
     log.info("Set current mission item to seq=%d", seq)
+
+    msg = mav.recv_match(type="MISSION_CURRENT", blocking=True, timeout=2)
+    if msg is not None:
+        log.info("[MISSION CURRENT CONFIRM] seq=%s after reset request", msg.seq)
+    else:
+        log.warning("[MISSION CURRENT CONFIRM] no MISSION_CURRENT received after reset request")
 
 
 
@@ -485,7 +493,7 @@ async def run():
             if existing_rtl_reason:
                 rtl_reason = existing_rtl_reason
             else:
-                rtl_reason = "pilot_or_rc_requested_rtl"
+                rtl_reason = RTL_REASON_MISSION_COMPLETE
 
             log.warning(f"RTL transition detected. Pausing autonomy. Reason: {rtl_reason}")
 
@@ -596,15 +604,17 @@ async def run():
 
                 last_executed_plan_id = plan_id
 
+                nav_state = load_nav_state()
+
                 update_nav_state("active_plan", {
                     **active_plan,
                     "status": "uploaded",
                     "reupload_requested": False,
                 })
 
-                if autonomy_active and controller_status.get("safety_hold") is None:
-                    log.info("[MISSION EXEC] Commanding AUTO after uploading plan_id=%s", plan_id)
-                    mav_set_mode(mav, "AUTO")
+                # if autonomy_active and controller_status.get("safety_hold") is None:
+                #     log.info("[MISSION EXEC] Commanding AUTO after uploading plan_id=%s", plan_id)
+                #     mav_set_mode(mav, "AUTO")
 
                 update_state("mission_status", {
                     **mission_status,
