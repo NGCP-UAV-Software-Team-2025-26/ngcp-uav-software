@@ -1,0 +1,30 @@
+{
+  "search_area": [
+  [33.93559832653503, -117.6333218534539],
+  [33.935473707597936, -117.62444041774788],
+  [33.93257181506588, -117.62892011277968],
+  [33.93245829041332, -117.63076681921322],
+  [33.93185967908806, -117.63242083823737]
+  ],
+  "mra_refined_loiter_target": {
+    "lat": 33.933234,
+    "lon": -117.630914,
+    "valid": true
+  },
+  "mra_final_estimated_location": {
+    "lat": null,
+    "lon": null,
+    "valid": true
+  },
+  "eru_reported_location": {
+    "lat": null,
+    "lon": null,
+    "valid": false
+  },
+  "target_location": {
+    "lat": 33.932916,
+    "lon": -117.632103,
+    "valid": true
+  }
+
+}
