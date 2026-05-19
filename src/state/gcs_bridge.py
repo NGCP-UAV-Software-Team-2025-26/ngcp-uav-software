@@ -39,8 +39,11 @@ def read_json(path: Path):
     try:
         with open(path, "r") as f:
             return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"[STATE BRIDGE] JSON decode error in {path.name}: {e.msg}")
+        return None
     except Exception as e:
-        print(f"[STATE BRIDGE] Failed to read {path}: {e}")
+        print(f"[STATE BRIDGE] Failed to read {path.name}: {e}")
         return None
 
 
@@ -92,9 +95,9 @@ def main():
     print("[STATE BRIDGE] Starting Pi5 target/search-area bridge")
 
     last_search_area = None
-    last_refined = None
-    last_final = None
-    last_eru = None
+    last_refined_msg_id = None
+    last_final_msg_id = None
+    last_eru_msg_id = None
 
     while True:
         data = read_json(TELEMETRY_FILE)
@@ -126,46 +129,50 @@ def main():
         # FIRST Kraken transmit.
         # Updates ONLY mra_refined_loiter_target.
         # Does NOT update target_location.
-        refined_lat = data.get("mra_refined_lat")
-        refined_lon = data.get("mra_refined_lon")
+        refined_msg_id = data.get("mra_refined_msg_id") or data.get("mra_refined_seq")
+        if refined_msg_id and refined_msg_id != last_refined_msg_id:
+            refined_lat = data.get("mra_refined_lat")
+            refined_lon = data.get("mra_refined_lon")
 
-        if valid_coord(refined_lat, refined_lon):
-            current = (float(refined_lat), float(refined_lon))
-
-            if current != last_refined:
-                print(f"[STATE BRIDGE] MRA refined loiter target: {current}")
+            if valid_coord(refined_lat, refined_lon):
+                seq = data.get("mra_refined_seq", "N/A")
+                fix_id = data.get("mra_refined_fix_id") or f"mra_refined_{seq}"
+                
+                print(f"[STATE BRIDGE] Processed valid transmit: msg_id={refined_msg_id}, seq={seq}, source=mra_refined_loiter_target, lat={refined_lat}, lon={refined_lon}, updated=mra_refined_loiter_target, time={timestamp}")
 
                 update_nav_state("mra_refined_loiter_target", {
                     "lat": float(refined_lat),
                     "lon": float(refined_lon),
                     "confidence": data.get("mra_refined_confidence"),
                     "timestamp": timestamp,
-                    "fix_id": data.get("mra_refined_fix_id", "mra_refined_001"),
+                    "fix_id": fix_id,
                     "valid": True
                 })
 
-                last_refined = current
+                last_refined_msg_id = refined_msg_id
 
         # ------------------------------------------------------------
         # 3. MRA final estimated location from Kraken
         # ------------------------------------------------------------
         # SECOND Kraken transmit.
         # Updates mra_final_estimated_location and target_location.
-        final_lat = data.get("mra_final_lat")
-        final_lon = data.get("mra_final_lon")
+        final_msg_id = data.get("mra_final_msg_id") or data.get("mra_final_seq")
+        if final_msg_id and final_msg_id != last_final_msg_id:
+            final_lat = data.get("mra_final_lat")
+            final_lon = data.get("mra_final_lon")
 
-        if valid_coord(final_lat, final_lon):
-            current = (float(final_lat), float(final_lon))
-
-            if current != last_final:
-                print(f"[STATE BRIDGE] MRA final estimated location: {current}")
+            if valid_coord(final_lat, final_lon):
+                seq = data.get("mra_final_seq", "N/A")
+                fix_id = data.get("mra_final_fix_id") or f"mra_final_{seq}"
+                
+                print(f"[STATE BRIDGE] Processed valid transmit: msg_id={final_msg_id}, seq={seq}, source=mra_final_estimated_location, lat={final_lat}, lon={final_lon}, updated=mra_final_estimated_location, time={timestamp}")
 
                 update_nav_state("mra_final_estimated_location", {
                     "lat": float(final_lat),
                     "lon": float(final_lon),
                     "confidence": data.get("mra_final_confidence"),
                     "timestamp": timestamp,
-                    "fix_id": data.get("mra_final_fix_id", "mra_final_001"),
+                    "fix_id": fix_id,
                     "valid": True
                 })
 
@@ -176,28 +183,30 @@ def main():
                     timestamp
                 )
 
-                last_final = current
+                last_final_msg_id = final_msg_id
 
         # ------------------------------------------------------------
         # 4. ERU reported location from GCS
         # ------------------------------------------------------------
         # Comes from GCS PatientLocation command.
         # Updates eru_reported_location and target_location.
-        eru_lat = data.get("eru_lat")
-        eru_lon = data.get("eru_lon")
+        eru_msg_id = data.get("eru_msg_id") or data.get("eru_seq")
+        if eru_msg_id and eru_msg_id != last_eru_msg_id:
+            eru_lat = data.get("eru_lat")
+            eru_lon = data.get("eru_lon")
 
-        if valid_coord(eru_lat, eru_lon):
-            current = (float(eru_lat), float(eru_lon))
+            if valid_coord(eru_lat, eru_lon):
+                seq = data.get("eru_seq", "N/A")
+                fix_id = data.get("eru_fix_id") or f"eru_{seq}"
 
-            if current != last_eru:
-                print(f"[STATE BRIDGE] ERU reported location: {current}")
+                print(f"[STATE BRIDGE] Processed valid transmit: msg_id={eru_msg_id}, seq={seq}, source=eru_reported_location, lat={eru_lat}, lon={eru_lon}, updated=eru_reported_location, time={timestamp}")
 
                 update_nav_state("eru_reported_location", {
                     "lat": float(eru_lat),
                     "lon": float(eru_lon),
                     "confidence": None,
                     "timestamp": timestamp,
-                    "fix_id": data.get("eru_fix_id", "eru_001"),
+                    "fix_id": fix_id,
                     "valid": True
                 })
 
@@ -208,7 +217,7 @@ def main():
                     timestamp
                 )
 
-                last_eru = current
+                last_eru_msg_id = eru_msg_id
 
         time.sleep(POLL_DT_S)
 

@@ -118,7 +118,8 @@ def _atomic_write_json(path: Path, data: dict) -> None:
 def update_nav_state(key: str, value) -> None:
     if key in ("search_area", "mra_refined_loiter_target", "target_location"):
         print(f"[NAV_STATE WRITE] {key} -> {value}")
-        traceback.print_stack(limit=4)
+        if os.environ.get("DEBUG_NAV_STATE") == "1":
+            traceback.print_stack(limit=4)
 
     state = load_nav_state()
     state[key] = value
