@@ -24,11 +24,11 @@ LOITER_SAMPLE_PTS   = 72     # Number of points sampled around circle circumfere
 UPDATE_INTERVAL_S   = 0.5    # Polling interval when waiting for target_location.valid (s)
 GENERATE_IMAGE      = True   # Toggle PNG generation 
 
-EARTH_RADIUS_M = 6371000.0
+EARTH_RADIUS_M = 6371000
 
 STANDBY_INTERVAL_S = 1.0
 DEFAULT_ALT_FT = 200.0
-
+MISSION3_ALT_FT = 150.0
 
 ###############################################################################
 # Geodetic helper
@@ -516,11 +516,8 @@ def run_mission_3():
     # ------------------------------------------------------------------
     # Read altitude (feet — kept as-is)
     # ------------------------------------------------------------------
-    alt_ft = nav_state.get("alt_ft")
-    if alt_ft is None:
-        alt_ft = DEFAULT_ALT_FT
-        update_state_nav("alt_ft", alt_ft)
-        print(f"[WARN] alt_ft was None. Defaulting to {alt_ft} ft.")
+    alt_ft = MISSION3_ALT_FT
+    print(f"[STATE] Mission 3 planned altitude → {alt_ft} ft")
 
     # ------------------------------------------------------------------
     # Convert loiter centre to local frame and clamp to search area
