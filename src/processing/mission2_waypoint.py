@@ -19,7 +19,7 @@ UPDATE_INTERVAL_S   = 0.5    # Polling interval when waiting for target_location
 GENERATE_IMAGE      = True   # Toggle PNG generation
 
 STANDBY_INTERVAL_S = 1.0
-DEFAULT_ALT_FT = 200.0
+DEFAULT_ALT_FT = 150.0
 MIN_MISSION2_RUN_TIME_S = 10.0
 
 EARTH_RADIUS_M = 6_371_000.0

@@ -27,7 +27,7 @@ GENERATE_IMAGE      = True   # Toggle PNG generation
 EARTH_RADIUS_M = 6371000
 
 STANDBY_INTERVAL_S = 1.0
-DEFAULT_ALT_FT = 200.0
+DEFAULT_ALT_FT = 150.0
 MISSION3_ALT_FT = 150.0
 
 ###############################################################################

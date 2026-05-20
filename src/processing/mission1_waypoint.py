@@ -32,7 +32,7 @@ L1_DISTANCE_M      = 30.0   # L1 guidance lookahead distance (m)
 UPDATE_INTERVAL_S  = 0.1    # Guidance loop polling interval (s)
 GENERATE_IMAGE     = True   # Toggle PNG map generation (True / False)
 #MISSION_TIMEOUT_S  = 240.0  # Maximum mission runtime in seconds (0 = no limit)
-CRUISE_ALT_FT      = 200.0  # Cruise altitude written into active_plan.alt_ft (ft)
+CRUISE_ALT_FT      = 150.0  # Cruise altitude written into active_plan.alt_ft (ft)
 
 EARTH_RADIUS_M = 6_371_000.0
 
