@@ -180,9 +180,37 @@ def convex_hull(pts):
         upper.append(p)
     return lower[:-1] + upper[:-1]
 
+def polygon_area_centroid(poly):
+    """
+    Area-weighted centroid of a polygon.
+    Better than averaging vertices for weird trapezoid / triangle shapes.
+    """
+    a = 0.0
+    cx = 0.0
+    cy = 0.0
+    n = len(poly)
+
+    for i in range(n):
+        x0, y0 = poly[i]
+        x1, y1 = poly[(i + 1) % n]
+        cross = x0 * y1 - x1 * y0
+        a += cross
+        cx += (x0 + x1) * cross
+        cy += (y0 + y1) * cross
+
+    a *= 0.5
+
+    if abs(a) < 1e-9:
+        return centroid(poly)
+
+    cx /= (6.0 * a)
+    cy /= (6.0 * a)
+
+    return cx, cy
+
 
 def fit_oriented_ellipse(hull_xy):
-    cx, cy = centroid(hull_xy)
+    cx, cy = polygon_area_centroid(hull_xy)
     dx = [p[0]-cx for p in hull_xy]
     dy = [p[1]-cy for p in hull_xy]
     n  = len(hull_xy)
