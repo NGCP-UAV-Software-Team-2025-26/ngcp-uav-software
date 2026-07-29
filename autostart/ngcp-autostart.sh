@@ -120,6 +120,15 @@ launch_system_controller() {
         "python3 $UAV_SRC/uav/system_controller.py" &
 }
 
+
+# Nav updater: copies requested update.json fields into navigation_state.json
+launch_nav_updater() {
+    local delay="${1:-7}"
+    sleep "$delay"
+    open_terminal "Nav Updater" \
+        "python3 $UAV_SRC/processing/nav_updater.py" &
+}
+
 # 8. Flight controller mode listener
 launch_fc_mode_listener() {
     local delay="${1:-0}"
@@ -170,7 +179,8 @@ launch_fusion_logger       # 3. fusion_logger.py
 launch_kraken_logger       # 4. kraken_logger.py
 launch_telemetry_logger    # 5. telemetry_logger.py
 launch_command_listener    # 6. command_listener.py
-#launch_fusion_sender       # 7. fusion_sender.py
+launch_nav_updater         # 7. nav_updater.py
+#launch_fusion_sender       #  fusion_sender.py
 launch_info_sender
 launch_main_controller     # 8. main_controller.py
 launch_system_controller   # 9. system_controller.py

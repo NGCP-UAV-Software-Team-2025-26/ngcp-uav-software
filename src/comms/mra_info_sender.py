@@ -45,6 +45,7 @@ import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 
+import requests
 from pymavlink import mavutil
 
 # Allows imports from src/state if this file is inside src/<folder>/
@@ -58,6 +59,10 @@ RFD_BAUD = int(os.environ.get("RFD_BAUD", 57600))
 
 POLL_INTERVAL_S = 0.1
 STATUS_HEARTBEAT_S = 1.0
+
+# KrakenSDR DOA endpoint (same one kraken_logger.py polls)
+KRAKEN_DOA_URL = os.environ.get("KRAKEN_DOA_URL", "http://127.0.0.1:8081/DOA_value.html")
+KRAKEN_PROBE_INTERVAL_S = 2.0  # Don't probe every loop — every 2s is sufficient
 
 CHUNK_PAYLOAD = 40
 MAX_CHUNKS = 99
@@ -165,6 +170,52 @@ def read_fusion_records(fusion_path: Path) -> list[dict]:
     return records
 
 
+# ── KrakenSDR status probe ─────────────────────────────────────────
+# Returns one of: "disconnected", "calibrating", "connected"
+_cached_kraken_status = "disconnected"
+_last_kraken_probe = 0.0
+
+
+def poll_kraken_status() -> str:
+    """Probe the KrakenSDR DOA endpoint to determine hardware state.
+
+    Returns:
+        "disconnected" — endpoint unreachable (DAQ not running)
+        "calibrating"  — endpoint responds but no valid DOA data yet
+        "connected"    — endpoint returns valid DOA with confidence
+    """
+    global _cached_kraken_status, _last_kraken_probe
+
+    now = time.time()
+    if now - _last_kraken_probe < KRAKEN_PROBE_INTERVAL_S:
+        return _cached_kraken_status
+    _last_kraken_probe = now
+
+    try:
+        r = requests.get(KRAKEN_DOA_URL, timeout=1)
+        text = r.text.strip()
+        if not text:
+            _cached_kraken_status = "calibrating"
+            return _cached_kraken_status
+
+        fields = text.split(",")
+        # fields[2] is confidence_0_1 — None/empty during calibration
+        try:
+            conf = float(fields[2].strip()) if len(fields) > 2 else None
+        except (ValueError, IndexError):
+            conf = None
+
+        if conf is None:
+            _cached_kraken_status = "calibrating"
+        else:
+            _cached_kraken_status = "connected"
+
+    except requests.exceptions.RequestException:
+        _cached_kraken_status = "disconnected"
+
+    return _cached_kraken_status
+
+
 def compact_mission_status(mission_state: dict, nav_state: dict) -> dict:
     controller_status = mission_state.get("controller_status", {})
     mission_status = mission_state.get("mission_status", {})
@@ -184,6 +235,7 @@ def compact_mission_status(mission_state: dict, nav_state: dict) -> dict:
         "active_plan_type": active_plan.get("plan_type"),
         "active_plan_label": active_plan.get("label"),
         "active_plan_status": active_plan.get("status"),
+        "kraken_status": poll_kraken_status(),
     }
 
 
@@ -395,7 +447,10 @@ def main():
                     key=lambda r: r["telemetry_seq"]
                 )
 
-                for record in new_records:
+                # Cap fusion records per loop so mission_status/flight_mode
+                # messages aren't starved during large backlogs.
+                MAX_FUSION_PER_LOOP = 3
+                for record in new_records[:MAX_FUSION_PER_LOOP]:
                     if send_downlink_message(mav, "fusion_record", record, msg_seq):
                         print(
                             f"[gcs_downlink_sender] fusion_record "

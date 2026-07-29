@@ -23,16 +23,22 @@ CMD_STOP_AUTONOMY = 31003
 CMD_REBOOT = 31004
 CMD_SHUTDOWN = 31005
 
-CMD_NEW_SEARCH_SESSION = 31006
+SEND_SEARCHAREA = 31006
+SEND_LOITER_TARGET = 31007
+SEND_TARGET_LOCATION = 31008
+CLEAR_NAV_UPDATES = 31009
 
 VALID_COMMANDS = (
     CMD_START_LOG,
     CMD_STOP_LOG,
+    SEND_SEARCHAREA,
+    SEND_LOITER_TARGET,
+    SEND_TARGET_LOCATION,
+    CLEAR_NAV_UPDATES,
     CMD_START_AUTONOMY,
     CMD_STOP_AUTONOMY,
     CMD_REBOOT,
     CMD_SHUTDOWN,
-    CMD_NEW_SEARCH_SESSION,
 )
 
 
@@ -46,8 +52,9 @@ def main():
     f"Commands: START_LOG={CMD_START_LOG}, STOP_LOG={CMD_STOP_LOG}, "
     f"START_AUTONOMY={CMD_START_AUTONOMY}, STOP_AUTONOMY={CMD_STOP_AUTONOMY}, "
     f"REBOOT={CMD_REBOOT}, SHUTDOWN={CMD_SHUTDOWN}, "
-    f"NEW_SEARCH_SESSION={CMD_NEW_SEARCH_SESSION}"
-    )
+    f"NAV_UPDATER: SEND_SEARCHAREA={SEND_SEARCHAREA}, SEND_LOITER_TARGET={SEND_LOITER_TARGET}, SEND_TARGET_LOCATION={SEND_TARGET_LOCATION}"
+    f"CLEAR_NAV_UPDATES={CLEAR_NAV_UPDATES}"
+   )
    print("Waiting for COMMAND_LONG\n")
 
 
@@ -122,7 +129,7 @@ def main():
             print("STOP_LOG applied (state updated)\n")
 
         elif cmd == CMD_START_AUTONOMY:
-            update_state("autonomy_active", True)
+            update_state("autonomy_command", True)
             update_state("last_command", "START_AUTONOMY")
             update_state("last_sender_sysid", src_sys)
             update_state("last_sender_compid", src_comp)
@@ -130,7 +137,7 @@ def main():
             print("START_AUTONOMY applied (state updated)\n")
 
         elif cmd == CMD_STOP_AUTONOMY:
-            update_state("autonomy_active", False)
+            update_state("autonomy_command", False)
             update_state("last_command", "STOP_AUTONOMY")
             update_state("last_sender_sysid", src_sys)
             update_state("last_sender_compid", src_comp)
@@ -151,13 +158,38 @@ def main():
             update_state("timestamp", time.time())
             print("Shutdown (state applied)\n")
         
-        elif cmd == CMD_NEW_SEARCH_SESSION:
-            update_state("pending_action", "new_search_session")
-            update_state("last_command", "NEW_SEARCH_SESSION")
+        elif cmd == SEND_SEARCHAREA:
+            update_state("send_searcharea_to_nav", True)
+            update_state("last_command", "SEND_SEARCHAREA")
             update_state("last_sender_sysid", src_sys)
             update_state("last_sender_compid", src_comp)
             update_state("timestamp", time.time())
-            print("NEW_SEARCH_SESSION applied (state updated)\n")
+            print("SEND_SEARCHAREA applied (state updated)\n")
+        
+        elif cmd == SEND_LOITER_TARGET:
+            update_state("send_loiter_target_to_nav", True)
+            update_state("last_command", "SEND_LOITER_TARGET")
+            update_state("last_sender_sysid", src_sys)
+            update_state("last_sender_compid", src_comp)
+            update_state("timestamp", time.time())
+            print("SEND_LOITER_TARGET applied (state updated)\n")
+
+        elif cmd == SEND_TARGET_LOCATION:
+            update_state("send_target_location_to_nav", True)
+            update_state("last_command", "SEND_TARGET_LOCATION")
+            update_state("last_sender_sysid", src_sys)
+            update_state("last_sender_compid", src_comp)
+            update_state("timestamp", time.time())
+            print("SEND_TARGET_LOCATION applied (state updated)\n")
+
+        elif cmd == CLEAR_NAV_UPDATES:
+            update_state("clear_nav_updates", True)
+            update_state("last_command", "CLEAR_NAV_UPDATES")
+            update_state("last_sender_sysid", src_sys)
+            update_state("last_sender_compid", src_comp)
+            update_state("timestamp", time.time())
+            print("CLEAR_NAV_UPDATES applied (state updated)\n")
+            
 
         else:
             print(f"Unrecognised command id={cmd}, ignoring.\n")

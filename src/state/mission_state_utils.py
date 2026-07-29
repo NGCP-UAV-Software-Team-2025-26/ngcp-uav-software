@@ -47,6 +47,11 @@ DEFAULTS = {
         "current_mode": None,
         "active_waypoint_index": None,
     },
+
+    "send_searcharea_to_nav": False,
+    "send_loiter_target_to_nav": False,
+    "send_target_location_to_nav": False,
+    "clear_nav_updates": False,
 }
 
 

@@ -36,6 +36,8 @@ RTL_REASON_LOW_BATTERY = "low_battery_failsafe"
 RTL_REASON_AUTONOMY = "autonomy_safety_rtl"
 RTL_REASON_UNKNOWN = "unknown_external_rtl"
 RTL_REASON_MISSION_COMPLETE = "mission_complete_rtl"
+rtl_reason = RTL_REASON_MISSION_COMPLETE
+
 #From ARDUPILOT
 ARDUPLANE_MODES = {
     "MANUAL": 0, 
@@ -106,29 +108,31 @@ def mav_upload_mission_items(mav, items: list) -> None:
         t = msg.get_type()
         if t in ("MISSION_REQUEST", "MISSION_REQUEST_INT"):
             seq = msg.seq
-            item = items[seq]
-            use_int = (t == "MISSION_REQUEST_INT")
 
-            if use_int:
-                mav.mav.mission_item_int_send(
-                    mav.target_system, mav.target_component, seq,
-                    item["frame"], item["command"],
-                    item["current"], item["autocontinue"],
-                    item["param1"], item["param2"],
-                    item["param3"], item["param4"],
-                    item["x"], item["y"], item["z"],
-                    mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
+            if seq < 0 or seq >= len(items):
+                raise RuntimeError(
+                    f"Vehicle requested invalid mission seq={seq}, but only {len(items)} items exist"
                 )
-            else:
-                mav.mav.mission_item_send(
-                    mav.target_system, mav.target_component, seq,
-                    item["frame"], item["command"],
-                    item["current"], item["autocontinue"],
-                    item["param1"], item["param2"],
-                    item["param3"], item["param4"],
-                    item["x"] / 1e7, item["y"] / 1e7, item["z"],
-                    mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
-                )
+            
+            item = items[seq]
+
+            mav.mav.mission_item_int_send(
+            mav.target_system,
+            mav.target_component,
+            seq,
+            item["frame"],
+            item["command"],
+            item["current"],
+            item["autocontinue"],
+            item["param1"],
+            item["param2"],
+            item["param3"],
+            item["param4"],
+            item["x"],
+            item["y"],
+            item["z"],
+            mavutil.mavlink.MAV_MISSION_TYPE_MISSION,
+        )
 
         elif t == "MISSION_ACK":
             ack = msg
@@ -291,6 +295,7 @@ def mav_upload_plan(mav, plan: dict) -> None:
 
 
     mav_upload_mission_items(mav, items)
+    # temp comment for debugging
     mav_set_current_mission_item(mav, 0)
 
 def mav_set_current_mission_item(mav, seq: int = 0) -> None:
@@ -300,6 +305,12 @@ def mav_set_current_mission_item(mav, seq: int = 0) -> None:
         seq,
     )
     log.info("Set current mission item to seq=%d", seq)
+
+    msg = mav.recv_match(type="MISSION_CURRENT", blocking=True, timeout=2)
+    if msg is not None:
+        log.info("[MISSION CURRENT CONFIRM] seq=%s after reset request", msg.seq)
+    else:
+        log.warning("[MISSION CURRENT CONFIRM] no MISSION_CURRENT received after reset request")
 
 
 
@@ -482,7 +493,7 @@ async def run():
             if existing_rtl_reason:
                 rtl_reason = existing_rtl_reason
             else:
-                rtl_reason = "pilot_or_rc_requested_rtl"
+                rtl_reason = RTL_REASON_MISSION_COMPLETE
 
             log.warning(f"RTL transition detected. Pausing autonomy. Reason: {rtl_reason}")
 
@@ -540,10 +551,18 @@ async def run():
         rel_alt = telemetry.get("rel_alt_m", 0.0)
         armed   = telemetry.get("armed", False)
 
+        reupload_requested = active_plan.get("reupload_requested", False)
+
         upload_condition = (
             plan_id is not None
-            and plan_status in ("ready", "error", "uploaded") # allow retry if error or upload if ready, but skip if already uploaded
-            and plan_id != last_executed_plan_id
+            and (
+                plan_status in ("ready", "error")
+                or reupload_requested
+            )
+            and (
+                plan_id != last_executed_plan_id
+                or reupload_requested
+            )
         )
 
         if upload_condition:
@@ -585,14 +604,17 @@ async def run():
 
                 last_executed_plan_id = plan_id
 
+                nav_state = load_nav_state()
+
                 update_nav_state("active_plan", {
                     **active_plan,
                     "status": "uploaded",
+                    "reupload_requested": False,
                 })
 
-                if autonomy_active and controller_status.get("safety_hold") is None:
-                    log.info("[MISSION EXEC] Commanding AUTO after uploading plan_id=%s", plan_id)
-                    mav_set_mode(mav, "AUTO")
+                # if autonomy_active and controller_status.get("safety_hold") is None:
+                #     log.info("[MISSION EXEC] Commanding AUTO after uploading plan_id=%s", plan_id)
+                #     mav_set_mode(mav, "AUTO")
 
                 update_state("mission_status", {
                     **mission_status,
@@ -825,7 +847,7 @@ async def run():
         }
 
         if flight_mode in auto_modes:
-            if plan_status not in ("uploaded", "running"):
+            if plan_status not in ("uploaded", "running", "ready", "building"):
                 log.warning(
                     "AUTO/MISSION detected, but active_plan status is %s. "
                     "Not marking autonomy active because no valid mission is confirmed uploaded.",
