@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+THIS IS AN OLDER VERSION WHERE FUSED DATA WAS SENT TO THE GROUND, IT HAS BEEN REPLACED BY MRA INFO SENDER AS THAT HAS MORE DATA THAT THE KRAKEN GUI WANTED"
 fusion_receiver.py — reads framed fusion records from the RFD900x serial port
 and re-emits each as a UDP JSON datagram for the kraken-triangulator.
 

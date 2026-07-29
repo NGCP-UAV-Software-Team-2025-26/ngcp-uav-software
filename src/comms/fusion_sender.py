@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+THIS IS AN OLDER VERSION WHERE FUSED DATA WAS SENT TO THE GROUND, IT HAS BEEN REPLACED BY MRA INFO SENDER AS THAT HAS MORE DATA THAT THE KRAKEN GUI WANTED"
+
 fusion_sender.py
 
 Reads new records from the live fusion JSONL and sends each one over the

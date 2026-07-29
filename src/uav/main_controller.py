@@ -11,7 +11,9 @@ from mavsdk import System
 
 from pymavlink import mavutil
 
+# Main controller for the UAV system, responsible for interacting with the flight controller via pymavlink,
 
+#Configs and parameters 
 # Enable INFO level logging by default so that INFO messages are shown
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +56,7 @@ ARDUPLANE_MODES = {
     "GUIDED": 15,
 }
 
+
 #PYMAVLINK Functions
 
 #Heartbeat
@@ -87,6 +90,7 @@ def mav_set_mode(mav, mode_name: str) -> bool:
     log.warning("pymavlink: mode ACK not confirmed for %s", mode_name)
     return False
 
+#Tells Ardupilot how many mission items exists and uploads them one by one, waiting for requests and acknowledgements
 def mav_upload_mission_items(mav, items: list) -> None:
     mav.mav.mission_count_send(
         mav.target_system,
@@ -143,6 +147,8 @@ def mav_upload_mission_items(mav, items: list) -> None:
     log.info("Mission accepted by ArduPilot (%d items)", len(items))
 
 
+
+# Builds a list of mission items for a single loiter point, including a waypoint to the loiter center and an unlimited loiter command
 def build_loiter_items(plan: dict) -> list:
     waypoints = plan.get("waypoints", [])
     if not waypoints:
@@ -395,8 +401,6 @@ async def run():
             **active_plan,
             "status": "ready",
         })
-    # last_upload_time = 0.0
-    # last_processed_fix_id = None
     last_telemetry_time = time.time()
     state_period_s = 1.0 / STATE_POLL_HZ
     last_state_check = 0.0
@@ -612,10 +616,6 @@ async def run():
                     "reupload_requested": False,
                 })
 
-                # if autonomy_active and controller_status.get("safety_hold") is None:
-                #     log.info("[MISSION EXEC] Commanding AUTO after uploading plan_id=%s", plan_id)
-                #     mav_set_mode(mav, "AUTO")
-
                 update_state("mission_status", {
                     **mission_status,
                     "active_plan_id": plan_id,
@@ -663,12 +663,6 @@ async def run():
             )
             last_status_log = time.time()
 
-
-                
-            
-       
-        
-        # fc_mode = controller_status.get("fc_mode")
         loiter_requested = state.get("loiter_requested", False)
         #Loiter from GCS 
         if loiter_requested:
@@ -824,21 +818,6 @@ async def run():
             await asyncio.sleep(state_period_s)
             continue
 
-        # if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
-        #     log.info("Aircraft is in RTL. Not re-enabling autonomy.")
-        #     autonomy_active = False
-        #     controller_status = load_state().get("controller_status", {})
-        #     update_state("controller_status", {
-        #         **controller_status,
-        #         "autonomy_active": False,
-        #     })
-        #     update_state("mission_status", {
-        #         **mission_status,
-        #         "current_mode": "RTL",
-        #     })
-        #     await asyncio.sleep(state_period_s)
-        #     continue
-
         auto_modes = {
             "MISSION",
             "AUTO",
@@ -898,34 +877,6 @@ async def run():
 
                 log.info("Plan %s is now running because aircraft entered AUTO/MISSION.", plan_id)
 
-        # if should_autonomy and not autonomy_active:
-
-        #     # if flight_mode in ("RETURN_TO_LAUNCH", "FlightMode.RETURN_TO_LAUNCH", "RTL"):
-        #     #     # NEVER re-enable during RTL
-        #     #     await asyncio.sleep(state_period_s)
-        #     #     continue
-
-        #     if pilot_in_control:
-        #         # don't re-enable if pilot still flying
-        #         await asyncio.sleep(state_period_s)
-        #         continue
-        #     log.info("Autonomy enabled")
-        #     autonomy_active = True
-        #     controller_status = load_state().get("controller_status", {})
-
-        #     update_state("controller_status", {
-        #         **controller_status,
-        #         "autonomy_active": True, 
-        #         "safety_hold": None,
-                
-        #     })
-
-        #     if mission_status.get("current_mode") != "Idle":
-        #         update_state("mission_status", {
-        #             **mission_status,
-        #             "current_mode": "Idle",
-        #         })
-
         if not autonomy_active:
             await asyncio.sleep(state_period_s)
             continue
@@ -933,26 +884,6 @@ async def run():
         msg = mav.recv_match(type="MISSION_CURRENT", blocking=False)
         if msg is not None:
             log.info("[MISSION CURRENT] seq=%s", msg.seq)
-
-        # elif not should_autonomy and autonomy_active:
-        #     # Stopping Autonomy
-        #     log.info("Autonomy disabled")
-        #     autonomy_active = False
-
-        #     controller_status = load_state().get("controller_status", {})
-        #     update_state("controller_status", {
-        #         **controller_status,
-        #         "autonomy_active": False,
-        #     })
-
-        #     update_state("mission_status", {
-        #         **mission_status,
-        #         "current_mode": "Idle",
-        #     })
-
-        #     await asyncio.sleep(state_period_s)
-        #     continue
-       
 
         if not armed:
             log.debug("Aircraft not armed. Waiting.")

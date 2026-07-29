@@ -1,8 +1,6 @@
 import time
 import uuid
 
-
-
 SEARCH_LIMIT_S = 480      # 8 minutes total
 FALLBACK_TRIGGER_S = 420  # 7 minutes
 
@@ -135,12 +133,7 @@ def update_best_fix(state: dict, candidate_fix: dict) -> dict:
 
 
 def check_time_gates(state: dict) -> tuple[dict, str | None]:
-    """
-    Returns:
-      - (state, "FALLBACK_FIX") at 7 minutes if best_fix exists and fallback not used
-      - (state, "SEARCH_TIMEOUT") at 8 minutes
-      - (state, None) otherwise
-    """
+
     elapsed = get_elapsed(state)
     decision = state.get("decision", {})
 

@@ -1,4 +1,6 @@
 """
+WAS NOT USED LAST YEAR DUE TO TRIANGULATION BEING OFFLOADED TO GROUND COMPUTER AND KRAKEN TRIANGULATION APP!!!
+
 DOA triangulation processor for Kraken + telemetry data
 
 Core idea

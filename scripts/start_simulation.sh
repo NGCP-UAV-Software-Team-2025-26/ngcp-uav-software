@@ -94,5 +94,5 @@ sleep 1
 
 open_terminal "10 - GCS Simulator" "
     cd '$PROJECT_DIR'
-    python3 src/autonomy/gcssimulator.py
+    python3 scripts/gcssimulator.py
 "
