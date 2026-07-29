@@ -49,6 +49,7 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+<<<<<<< HEAD
 
 
 
@@ -58,3 +59,9 @@ CATKIN_IGNORE
 
 src/comms/debug.py
 src/comms/heartbeattest.py
+=======
+# MAVLink/ArduPilot generated files
+*.tlog
+*.tlog.raw
+*.parm
+>>>>>>> 3e1bd38 (Update gitignore for generated MAVLink files)
