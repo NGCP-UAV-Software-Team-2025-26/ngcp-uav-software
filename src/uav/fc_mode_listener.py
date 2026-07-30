@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 
-'''
-    Listens to the Pixhawk flight controller's heartbeat messages and updates the mission state
-    with the current flight mode. This allows the autonomy system to react to changes in the
-    flight mode, enabling or disabling autonomy commands and updating controller status accordingly.
-'''
+#This function listents to the PIXHAWK's flight controller heartbeat messages and updates the mission state with the current flight mode
+#THis makes it so that our autonomous scripts can react to changes in the flight mode
+
 import time
 import os
 from pymavlink import mavutil
 from pathlib import Path
 import sys
 
-# Allow import of your state utils
+# Allow import of state utils
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.mission_state_utils import load_state, update_state
