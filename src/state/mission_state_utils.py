@@ -5,6 +5,7 @@ import traceback
 from copy import deepcopy
 from pathlib import Path
 
+#This file sets the defaults for the JSON files and provides utility functions to read and write the mission state JSON.
 STATE_FILE = Path(__file__).resolve().parent / "mission_state.json"
 
 DEFAULTS = {

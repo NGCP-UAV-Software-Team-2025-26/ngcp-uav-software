@@ -7,6 +7,9 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.mission_state_utils import load_state, update_state, STATE_FILE 
 
+#THis file is when we wanted to reboot or shutdown wirelessly and via commands, we might be removing this command system so 
+# this file might be outdated, however it is pretty useful so id keep it around for now
+
 STATE_POLL_HZ = 2.0 #How often to check state file
 
 async def main():

@@ -22,11 +22,9 @@ BASE_DIR   = Path(__file__).resolve().parents[2]
 FUSION_DIR = BASE_DIR / "logs" / "fusion"
 FUSION_DIR.mkdir(parents=True, exist_ok=True)
 
-# How often (seconds) the idle loop polls mission_state for a new telemetry file.
-IDLE_POLL_INTERVAL_S   = 1.0
-# How often (seconds) an active fusion session re-reads both logs and rewrites the fusion output. 
-ACTIVE_POLL_INTERVAL_S = 0.5
+IDLE_POLL_INTERVAL_S   = 1.0 # How often the idle loop polls mission_state for a new telemetry file in seconds
 
+ACTIVE_POLL_INTERVAL_S = 0.5 # How often an active fusion session re-reads both logs and rewrites the fusion output in seconds
 
 def load_jsonl(path: Path) -> list[dict]:
     records = []
@@ -64,8 +62,7 @@ def find_nearest(timestamps: list[int], target: int) -> int:
         return before
     return after
 
-#For triangulation to see if usable in confidence
-
+# For triangulation to see if usable in confidence, roll, and ground speed constraints
 def is_usable(
     confidence_0_1: float | None,
     roll_deg: float | None,
@@ -78,16 +75,16 @@ def is_usable(
     min_ground_speed_ft_s: float,
 ) -> bool:
     if abs(dt_ms) > max_time_diff_ms:
-        print(f"FAIL dt_ms: {dt_ms}")
+        print(f"FAIL Time Difference: {dt_ms}")
         return False
     if confidence_0_1 is None or confidence_0_1 < min_confidence:
-        print(f"FAIL confidence: {confidence_0_1}")
+        print(f"FAIL Confidence: {confidence_0_1}")
         return False
     if roll_deg is None or abs(roll_deg) > max_roll_deg:
-        print(f"FAIL roll_deg: {roll_deg}")
+        print(f"FAIL Roll Deg: {roll_deg}")
         return False
     if ground_speed_ft_s is None or ground_speed_ft_s < min_ground_speed_ft_s:
-        print(f"FAIL grsound_speed_ft_s: {ground_speed_ft_s}")
+        print(f"FAIL Ground Speed Ft/s: {ground_speed_ft_s}")
         return False
     return True
 
@@ -169,7 +166,6 @@ def fuse(
 
             
             "usable_for_triangulation": usable,
-            # "usable_for_triangulation": True,
         }
         fused.append(record)
 
@@ -197,6 +193,7 @@ def main() -> None:
     # Main continuous loop 
     while True:
         # Re-read mission_state on every iteration so we always see the latest paths written by other loggers.
+        #This is so if the telemetry/kraken log changes mid-run, we detect a new session and update the active session accordingly.
         state = load_state()
 
         kraken_path_str = state.get("kraken_log")
@@ -205,13 +202,13 @@ def main() -> None:
 
         # Kraken log need valid path in state before fusing
         if not kraken_path_str:
-            print("[fusion_logger] Waiting: kraken_log not in state yet …")
+            print("[fusion_logger] Waiting: kraken_logger not in state yet …")
             time.sleep(IDLE_POLL_INTERVAL_S)
             continue
 
         #Telemetry needs valid path
         if not tel_path_str:
-            print("[fusion_logger] Waiting: telemetry_log not in state yet ...")
+            print("[fusion_logger] Waiting: telemetry_loggger not in state yet ...")
             time.sleep(IDLE_POLL_INTERVAL_S)
             continue
 
@@ -220,13 +217,13 @@ def main() -> None:
         kraken_file = Path(kraken_path_str)
         tel_file    = Path(tel_path_str)   # tel_path_str is not None here
 
-        # NEW-SESSION DETECTION, fires once when telemetry_log first changes (startup→new), and again any time it changes a second time mid-run (new session within the same process lifetime)
-        # active_session tracks the (kraken_log, telemetry_log) pair being fused
-        if session != active_session:
+        # If a new session / if the active session changes, fires once when telemetry_log first changes 
+        # Active_session tracks the (kraken_log, telemetry_log) pair being fused
+        if session != active_session: #So if it's different v
             # Extract run_id from the kraken filename, same as the original code.
             run_id = kraken_file.stem.replace("doa_", "")
 
-            out_file = FUSION_DIR / f"fusion_{run_id}.jsonl"
+            out_file = FUSION_DIR / f"fusion_{run_id}.jsonl" #Names it the run id 
 
             # Record start time of fusion session for meta file
             t_fusion_start_ms = int(time.time() * 1000)
@@ -251,7 +248,7 @@ def main() -> None:
             print(f"[fusion_logger] Waiting: Telemetry file does not exist yet: {tel_file}")
             time.sleep(IDLE_POLL_INTERVAL_S)
             continue
-        # re-read both files completely on every cycle
+        # Re-read both files completely on every cycle
         # JSONL files are append-only, loading them fresh each time is the simplest way to pick up newly appended records
         
         tel_records    = load_jsonl(tel_file)
@@ -264,7 +261,7 @@ def main() -> None:
             time.sleep(ACTIVE_POLL_INTERVAL_S)
             continue
 
-        # kraken_records can be empty now
+        # kraken_records can be empty now, because the kraken log may not have any records yet, but we still care about telemetry/location of UAV
 
         fused = fuse(
             kraken_records,
@@ -290,9 +287,9 @@ def main() -> None:
             time.sleep(IDLE_POLL_INTERVAL_S)
             continue
 
-        # WRITE, overwrite the fusion file completely on each cycle
-        with open(out_file, "w", encoding="utf-8") as f:
-            for record in fused:
+        # Overwrite the fusion file completely on each cycle
+        with open(out_file, "w", encoding="utf-8") as f: #Open -> overwrite the file
+            for record in fused: 
                 f.write(json.dumps(record) + "\n")
 
 

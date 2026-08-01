@@ -5,6 +5,7 @@ import traceback
 from copy import deepcopy
 from pathlib import Path
 
+#This file sets the defaults for the navigation state JSON and provides utility functions to read and write the navigation state JSON.
 NAV_STATE_FILE = Path(__file__).resolve().parent / "navigation_state.json"
 
 DEFAULTS = {

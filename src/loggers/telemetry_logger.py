@@ -8,12 +8,10 @@ import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.mission_state_utils import load_state, update_state, STATE_FILE #For the mission_state.json
-from mavsdk import System
+from mavsdk import System #Needs MAVSDK to get telemetry data
 
-
-#SYSTEM_ADDRESS = "udp://<SITL_IP>:14540"
+#This script is for logging telemetry data from the UAV (Works in SITL as well)
 SYSTEM_ADDRESS = os.getenv("MAVSDK_SYSTEM_ADDRESS", "udpin://0.0.0.0:14602")
-
 
 LOG_HZ = 5.0  #logging rate (Hz)
 STATE_POLL_HZ = 2.0 #How often to check state file
@@ -24,15 +22,12 @@ MS_TO_FTS = 3.280839895
 
 START_STRUCT = time.localtime()
 RUN_ID    = time.strftime("%Y%m%d_%H%M%S", START_STRUCT)
-#META_FILE = LOG_DIR / f"telemetry_{RUN_ID}_meta.json"
-
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 LOG_DIR  = BASE_DIR / "logs" / "telemetry"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 #Connection Checks
-
 async def wait_connected(drone: System):
     print(f"Connecting via {SYSTEM_ADDRESS} ...")
     await drone.connect(system_address=SYSTEM_ADDRESS)
@@ -52,10 +47,8 @@ async def wait_position_ok(drone: System):
             return
         
 async def main():
-    # write_meta()
     drone = System()
     await wait_connected(drone)
-    #await wait_position_ok(drone)
 
     latest = {
         "position": None,   #lat/lon/alt
@@ -80,7 +73,6 @@ async def main():
         async for msg in drone.telemetry.battery():
             latest["battery"] = msg
 
-
     tasks = [
             asyncio.create_task(pump_position()),
             asyncio.create_task(pump_velocity()),
@@ -97,7 +89,6 @@ async def main():
     last_state_check = 0.0
     seq = 0
     
-    
 
     print(f"State file: {STATE_FILE}")
     print()
@@ -112,28 +103,25 @@ async def main():
             if loop_start - last_state_check >= state_period_s:
                 last_state_check = loop_start
                 state = load_state()
-                should_log = state.get("logging_enabled", False)
+                should_log = state.get("logging_enabled", False) #Because we had a system where we sent a command to start logging
 
-                if should_log and not logging_enabled:
-                    #Starts Logging
+                if should_log and not logging_enabled: #Starts a new logging session 
                     session_ts = time.strftime("%Y%m%d_%H%M%S")
                     out_file = LOG_DIR / f"telemetry_{RUN_ID}_{session_ts}.jsonl"
                     f = open(out_file, "a", encoding="utf-8")
                     update_state("telemetry_log", str(out_file))
-                    logging_enabled = True
+                    logging_enabled = True #Set to true so that logging starts
                     print(f"START_LOG: logging to {out_file}")
 
-                elif not should_log and logging_enabled:
-                    #Stops logging
+                elif not should_log and logging_enabled: #Stops logging
                     if f:
                         f.close()
                         f = None
                     logging_enabled = False
-                    # update_state("telemetry_log", "None") #Commented out so the path isn't lost
                     print(f"STOP_LOG: closed {out_file}")
                     out_file = None
 
-            if logging_enabled and f is not None:
+            if logging_enabled and f is not None: #Starts logging telemetry data
                 t_rx_ms = int(time.time() * 1000)
 
                 pos = latest["position"]
@@ -155,8 +143,6 @@ async def main():
                     "yaw_deg": round(att.yaw_deg, 4)   if att is not None else None,
                     "roll_deg": round(att.roll_deg, 4)  if att is not None else None,
                     
-                   
-                    
                     "lat_deg": (pos.latitude_deg if pos is not None else None),
                     "lon_deg": (pos.longitude_deg if pos is not None else None),
                     
@@ -166,11 +152,9 @@ async def main():
                     "vel_north_m_s": round(vel.north_m_s, 4) if vel is not None else None,
                     "vel_east_m_s": round(vel.east_m_s,  4) if vel is not None else None,
                     "vel_down_m_s": round(vel.down_m_s,  4) if vel is not None else None,
-
-                             
+ 
                     "battery_remain_pct": round(bat.remaining_percent * 100.0, 4) if bat is not None and bat.remaining_percent is not None else None,
                 }
-
                 f.write(json.dumps(record) + "\n")
                 f.flush()
                 seq += 1

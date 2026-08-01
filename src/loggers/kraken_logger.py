@@ -9,51 +9,36 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.mission_state_utils import update_state #For the mission_state.json
 
-# Kraken DOA endpoint (LOCALHOST on Pi)
-DOA_URL = "http://127.0.0.1:8081/DOA_value.html"
+# This script logs data from the Kraken DOA endpoint to a JSON Lines file, with a unique run ID for each session.
+
+# Kraken DOA endpoint (Hosted on Pi)
+DOA_URL = "http://127.0.0.1:8081/DOA_value.html" #This is where the KrakenSDR sends data so it's where this script will take the information from
+
 # Polling rate (seconds)
 UPDATE_RATE = 0.1  # 10 Hz or match Kraken update rate
-#SCRIPT_NAME = "kraken_logger.py"
-
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 LOG_DIR = BASE_DIR / "logs" / "kraken"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-
 START_STRUCT = time.localtime()
 RUN_ID   = time.strftime("%Y%m%d_%H%M%S", START_STRUCT)
-# Output JSON log file (JSON Lines format)
-OUT_FILE = LOG_DIR / f"doa_{RUN_ID}.jsonl"
-#META_FILE = LOG_DIR / f"doa_{RUN_ID}_meta.json"
 
-# def write_meta() -> None:
-#     meta = {
-#         "script": SCRIPT_NAME,
-#         "run_id":       RUN_ID,
-#         "poll_rate_hz": 1.0 / UPDATE_RATE,
-#         "doa_endpoint": DOA_URL,
-#         "log_file":     str(OUT_FILE),
-#         "t_start_ms":   int(time.time() * 1000),
-#     }
-
-#     META_FILE.write_text(json.dumps(meta, indent=2))
-#     print(f"Meta written in {META_FILE}")
-
+OUT_FILE = LOG_DIR / f"doa_{RUN_ID}.jsonl" # Output JSON log file (JSON Lines format)
 
 seq: int   = 0
 last_kraken_counter: float = -1 
 
+# Logs a single data point from the Kraken DOA endpoint to the JSON Lines file
 def log_once(f):
     global seq, last_kraken_counter
-    
     try:
-        t_rx_ms = int(time.time() * 1000) #Pi receipt time
+        t_rx_ms = int(time.time() * 1000) #Pi receipt time, needed for fusion with telemetry data
 
         try:
             r = requests.get(DOA_URL, timeout=1)
         except requests.exceptions.RequestException:
-            return  #endpoint not ready or no signal yet
+            return  #Endpoint not ready or no signal yet
 
         line = r.text.strip()
 
@@ -63,7 +48,7 @@ def log_once(f):
         
         kraken_counter = float(fields[0])
 
-        #forces unfinshed values to be null
+        # Forces unfinished values to be null
         def safe_float(val):
             try:
                 return float(val.strip())
@@ -87,7 +72,6 @@ def log_once(f):
             "lat_deg": safe_float(fields[9]),
             "lon_deg": safe_float(fields[10]),
             "gps_heading_deg": safe_float(fields[11]),
-            #"compass_heading": float(fields[12]),
         }
 
         line_out = json.dumps(entry)
@@ -106,7 +90,6 @@ def log_once(f):
     
 
 def main():
-    # write_meta()
     print(f"Logging in {OUT_FILE}  (run_id={RUN_ID})")
 
     with open(OUT_FILE, "a", encoding="utf-8") as f:

@@ -9,10 +9,14 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.nav_state_utils import update_nav_state
 
-TELEMETRY_FILE = Path("/tmp/telemetry.json")
+#This file is for bridging target and search area information from the GCS telemetry file to the navigation state json'
+
+TELEMETRY_FILE = Path("/tmp/telemetry.json") #A file on the PI where the GCS telemetry data is written
 POLL_DT_S = 0.2
 
-SEARCH_AREA_ZONE_ID = 1  # change this to whatever GCS defines as search area
+SEARCH_AREA_ZONE_ID = 1  # Change this to whatever GCS defines as search area
+#^ Except last year they just gave it to us before and we can just set it manually ?
+# Manually means we can either give the coordinates to our scripts or we can set it in QGC to flash onto the flight controller (Both is probably good)
 
 def find_search_area_zone(zones):
     if not isinstance(zones, list):
@@ -31,7 +35,6 @@ def find_search_area_zone(zones):
 def utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
 
-
 def read_json(path: Path):
     if not path.exists():
         return None
@@ -46,7 +49,7 @@ def read_json(path: Path):
         print(f"[STATE BRIDGE] Failed to read {path.name}: {e}")
         return None
 
-
+#Checks if the coordinates are valid (not None and not zero)
 def valid_coord(lat, lon):
     if lat is None or lon is None:
         return False
@@ -59,7 +62,7 @@ def valid_coord(lat, lon):
 
     return lat != 0.0 and lon != 0.0
 
-
+#Just chekcs to see if the search area is valid (has at least 3 points with valid coordinates)
 def valid_search_area(search_area):
     if not isinstance(search_area, list):
         return False
@@ -80,7 +83,7 @@ def valid_search_area(search_area):
 
     return True
 
-
+#Sets the target location in the navigation state json (THis would be the location sent by UGV -> GCS -> UAV)
 def set_target_location(lat, lon, source, timestamp):
     update_nav_state("target_location", {
         "lat": float(lat),
@@ -108,9 +111,7 @@ def main():
 
         timestamp = utc_now_iso()
 
-        # ------------------------------------------------------------
-        # 1. Search area from GCS
-        # ------------------------------------------------------------
+        #Search Area
         zones = data.get("zones", [])
         search_area = find_search_area_zone(zones)
         if valid_search_area(search_area):
@@ -119,16 +120,17 @@ def main():
             if current != last_search_area:
                 print(f"[STATE BRIDGE] Search area received with {len(search_area)} points")
 
-                update_nav_state("search_area", search_area)
-
+                update_nav_state("search_area", search_area) #Updates the nav state JSON
                 last_search_area = current
 
-        # ------------------------------------------------------------
-        # 2. MRA refined loiter target from Kraken
-        # ------------------------------------------------------------
+        #THis is the refined loiter target that GCS sends so that the loiter point is better
         # FIRST Kraken transmit.
         # Updates ONLY mra_refined_loiter_target.
         # Does NOT update target_location.
+
+        #HOWEVER!!
+        #This is here because triangulation was done off board so that this location is sent from GCS, this year triangulation is going to be done on board so the refined loiter target may come from a different source and this logic will probably be moved to whatever processing it is. 
+        
         refined_msg_id = data.get("mra_refined_msg_id") or data.get("mra_refined_seq")
         if refined_msg_id and refined_msg_id != last_refined_msg_id:
             refined_lat = data.get("mra_refined_lat")

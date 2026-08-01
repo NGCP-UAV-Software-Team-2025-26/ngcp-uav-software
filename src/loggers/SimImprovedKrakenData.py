@@ -10,9 +10,10 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.mission_state_utils import update_state, load_state
 
-# ==========================
-# CONFIGURATION
-# ==========================
+#This script simulates Kraken DOA data for testing purposes, writing it to a JSON Lines file. 
+# I lowk had claude write a lot of this but it's meant to simulate realistic Kraken DOA data for testing purposes
+# We didn't really need it last year because simulations we just used coordinates that were "calculated" but for triangulation simulations using/updating this file may be a good starting point
+
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 LOG_DIR = BASE_DIR / "logs" / "kraken"
@@ -30,8 +31,8 @@ HOME_LAT = -35.35251
 HOME_LON = 149.15863
 
 # Simulated RF emitter location near SITL home
-# change these if you want the target somewhere else
-EMITTER_LAT = -35.35180
+# Change these if you want the target somewhere else
+EMITTER_LAT = -35.35180 
 EMITTER_LON = 149.16020
 
 # Confidence / noise behavior
@@ -42,22 +43,14 @@ MEDIUM_CONF_PROB = 0.20      # 20% chance of medium-quality read
 
 POLL_INTERVAL = 0.05         # how often to check telemetry file for new lines
 
-# ==========================
-# HELPERS
-# ==========================
 
 def wrap_angle_360(angle_deg: float) -> float:
     return angle_deg % 360.0
 
 def wrap_angle_180(angle_deg: float) -> float:
-    """Wrap to [-180, 180)."""
     return ((angle_deg + 180.0) % 360.0) - 180.0
 
 def bearing_deg(lat1, lon1, lat2, lon2) -> float:
-    """
-    Initial bearing from point 1 to point 2.
-    Returns [0, 360).
-    """
     lat1_rad = math.radians(lat1)
     lat2_rad = math.radians(lat2)
     dlon_rad = math.radians(lon2 - lon1)
@@ -72,9 +65,6 @@ def bearing_deg(lat1, lon1, lat2, lon2) -> float:
     return wrap_angle_360(brng)
 
 def distance_m_approx(lat1, lon1, lat2, lon2) -> float:
-    """
-    Small-distance approximation good enough for SITL/local testing.
-    """
     mean_lat_rad = math.radians((lat1 + lat2) / 2.0)
     dlat_m = (lat2 - lat1) * 111320.0
     dlon_m = (lon2 - lon1) * 111320.0 * math.cos(mean_lat_rad)
@@ -113,10 +103,7 @@ def parse_json_line(line: str):
     except json.JSONDecodeError:
         return None
 
-# ==========================
-# MAIN LOOP
-# ==========================
-
+#Main Loop
 def main():
     print(f"Writing simulated Kraken log to: {OUT_FILE}")
     print("Waiting for telemetry log path in mission_state.json ...")

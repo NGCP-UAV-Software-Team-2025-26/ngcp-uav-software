@@ -126,7 +126,7 @@ launch_nav_updater() {
     local delay="${1:-7}"
     sleep "$delay"
     open_terminal "Nav Updater" \
-        "python3 $UAV_SRC/processing/nav_updater.py" &
+        "python3 $UAV_SRC/autonomy/nav_updater.py" &
 }
 
 # 8. Flight controller mode listener
@@ -159,7 +159,7 @@ launch_mission1_waypoint() {
     local delay="${1:-0}"
     sleep "$delay"
     open_terminal "Mission1 Waypoint" \
-        "python3 $UAV_SRC/processing/mission1_waypoint.py" &
+        "python3 $UAV_SRC/autonomy/mission1_waypoint.py" &
 }
 
 # 7. Firefox pointing at the KrakenSDR web UI

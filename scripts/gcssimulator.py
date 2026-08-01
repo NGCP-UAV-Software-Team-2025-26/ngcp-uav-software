@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 MISSION_STATE_PATH = Path(__file__).resolve().parents[1] / "state" / "mission_state.json"
 NAV_STATE_PATH = Path(__file__).resolve().parents[1] / "state" / "navigation_state.json"
 
-
+#This file simulated GCS, but not really it was used so that I can wirelessly send commands or state updates to the UAV system for testing purposes
+# Works in simulation as well
 SEARCH_AREA = [
     [33.93522446917662, -117.63276100158691],
     [33.93509984969237, -117.62574434280396],

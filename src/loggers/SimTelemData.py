@@ -7,11 +7,10 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-
 from state.mission_state_utils import update_state #Makes it so this output updates mission-state.json
-# ==========================
-# CONFIGURATION
-# ==========================
+
+#THis file is basically useless now, it just generates random telemetry data for testing, its basically meant for pipeline testing
+#THe reason it's useless now is because we can just use the regular telemetry_logger.py and it will log the "real telemetry" for simulations too.
 
 BASE_DIR   = Path(__file__).resolve().parents[2]
 LOG_DIR    = BASE_DIR / "logs" / "telemetry"
@@ -24,10 +23,6 @@ update_state("telemetry_log", str(filepath))
 RATE_HZ = 10
 INTERVAL = 1.0 / RATE_HZ
 
-
-# ==========================
-# DATA GENERATION LOOP
-# ==========================
 
 seq = 0
 

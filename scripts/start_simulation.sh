@@ -80,7 +80,7 @@ sleep 1
 
 open_terminal "8 - Mission 1 Waypoint Builder" "
     cd '$PROJECT_DIR'
-    python3 src/processing/mission1_waypoint.py
+    python3 src/autonomy/mission1_waypoint.py
 "
 
 sleep 1
