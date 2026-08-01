@@ -62,7 +62,7 @@
     "plan_id": 1,
     "plan_type": "waypoint_pattern",
     "label": "Ellipse Pattern",
-    "status": "ready",
+    "status": "uploaded",
     "waypoints": [
       {
         "lat": 34.04319619959416,
@@ -181,7 +181,8 @@
       }
     ],
     "loiter_radius_ft": null,
-    "alt_ft": 200.0
+    "alt_ft": 200.0,
+    "reupload_requested": false
   },
   "next_plan": 2,
   "navigation": {
