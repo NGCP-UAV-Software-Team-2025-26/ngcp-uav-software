@@ -7,13 +7,17 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from state.mission_state_utils import load_state, update_state #For the mission_state.json
 from state.nav_state_utils import load_nav_state, update_nav_state #For waypoints and what not
-from mavsdk import System
 
+from mavsdk import System
 from pymavlink import mavutil
 
-# Main controller for the UAV system, responsible for interacting with the flight controller via pymavlink,
+# MAVSDK is used for high-level vehicle connection and action requests
+# pymavlink is used for direct mission and mode commands.
 
-#Configs and parameters 
+'''================================ LOGGING AND CONFIGURATION ================================'''
+
+# Main controller for the UAV system, responsible for interacting with the flight controller via pymavlink.
+
 # Enable INFO level logging by default so that INFO messages are shown
 logging.basicConfig(
     level=logging.INFO,
@@ -23,15 +27,18 @@ logging.basicConfig(
 log = logging.getLogger("main_controller")
 
 #Parameters
-STATE_POLL_HZ = 2.0 #How often to check state file
 
+#Controller Timings
+STATE_POLL_HZ = 2.0 #How often to check state file
 TELEMETRY_TIMEOUT_S = 5 #How old telemetry can be before it is considered bad
 
+#Mission Alt and distance settings
 FT_TO_M = 0.3048
 MIN_ALT_FT = 50 #Min alt feet
 LOITER_ALT_FT = 200 #TArget loiter altitutde 
 LOITER_RADIUS_FT = 165 #Acceptance radius for the loiter waypoint (Big cuz fixed wing
 
+#RTL Reason Identifiers
 RTL_REASON_GCS = "gcs_requested_rtl"
 RTL_REASON_RC = "pilot_or_rc_requested_rtl"
 RTL_REASON_LOW_BATTERY = "low_battery_failsafe"
@@ -57,9 +64,9 @@ ARDUPLANE_MODES = {
 }
 
 
-#PYMAVLINK Functions
+'''================================ MAVLINK CONNECTION AND VEHICLE COMMANDS ================================'''
 
-#Heartbeat
+# Connects to the flight controller over pymavlink and waits for heartbeat.
 def mav_connect(connection_string: str):
     # Opens a pymavlink connection
     mav = mavutil.mavlink_connection(connection_string)
@@ -71,7 +78,7 @@ def mav_connect(connection_string: str):
     )
     return mav
 
-#Mode
+# Requests an ArduPilot mode change and waits for the vehicle to confirm the new mode.
 def mav_set_mode(mav, mode_name: str) -> bool:
     mode_id = ARDUPLANE_MODES.get(mode_name.upper())
     if mode_id is None:
@@ -148,7 +155,9 @@ def mav_upload_mission_items(mav, items: list) -> None:
 
 
 
-# Builds a list of mission items for a single loiter point, including a waypoint to the loiter center and an unlimited loiter command
+'''================================ MISSION ITEM CONSTRUCTION ================================'''
+
+# Builds a loiter-style plan from nav_state.json into MAVLink mission items so the uav flies to a point and then loiters there.
 def build_loiter_items(plan: dict) -> list:
     waypoints = plan.get("waypoints", [])
     if not waypoints:
@@ -198,7 +207,7 @@ def build_loiter_items(plan: dict) -> list:
         ),
     ]
 
-
+# Waypointing function
 def build_waypoint_items(plan: dict) -> list:
     waypoints = plan.get("waypoints", [])
     if not waypoints:
@@ -233,8 +242,6 @@ def build_waypoint_items(plan: dict) -> list:
     return items
 
 
-
-
 def make_do_jump_item(target_index: int, repeat_count: int = -1) -> dict:
     return dict(
         command=mavutil.mavlink.MAV_CMD_DO_JUMP,
@@ -251,6 +258,9 @@ def make_do_jump_item(target_index: int, repeat_count: int = -1) -> dict:
     )
 
 
+'''================================ MISSION UPLOAD AND EXECUTION ================================'''
+
+# Chooses the mission builder based on plan_type and then uploads the resulting mission items to the fc
 def mav_upload_plan(mav, plan: dict) -> None:
     plan_type = plan.get("plan_type")
 
@@ -301,9 +311,10 @@ def mav_upload_plan(mav, plan: dict) -> None:
 
 
     mav_upload_mission_items(mav, items)
-    # temp comment for debugging
+    # Reset the current mission item after upload so ArduPilot begins from the first item.
     mav_set_current_mission_item(mav, 0)
 
+# Sets which mission item ArduPilot should consider current after the upload completes.
 def mav_set_current_mission_item(mav, seq: int = 0) -> None:
     mav.mav.mission_set_current_send(
         mav.target_system,
@@ -319,22 +330,25 @@ def mav_set_current_mission_item(mav, seq: int = 0) -> None:
         log.warning("[MISSION CURRENT CONFIRM] no MISSION_CURRENT received after reset request")
 
 
-
+# Requests AUTO mode so the uploaded mission can begin executing
 def mav_start_mission(mav) -> None:
-    """Switch to AUTO so ArduPilot executes the uploaded mission."""
     mav_set_mode(mav, "AUTO")
     log.info("pymavlink: AUTO mode commanded — mission executing")
 
+# Requests LOITER mode so the aircraft loiters at its current location
 def mav_loiter_in_place(mav) -> None:
     mav_set_mode(mav, "LOITER")
     log.info("pymavlink: LOITER mode commanded")
 
 
 
+'''================================ CONTROLLER STATE HELPERS ================================'''
+
+# Records the reason for an RTL request in shared state without commanding the aircraft to enter RTL
+# Mainly was was debugging purposes
 def set_rtl_reason(reason: str, source: str = "main_controller", details: dict | None = None):
  
     # Stores the most likely reason RTL was requested.
-  
     state = load_state()
     controller_status = state.get("controller_status", {})
 
@@ -353,8 +367,12 @@ def set_rtl_reason(reason: str, source: str = "main_controller", details: dict |
 
     log.warning(f"RTL reason set: {reason} | source={source} | details={details or {}}")
 
+'''================================ MAIN CONTROLLER ================================'''
+
+# The main loop coordinates startup, telemetry updates, and state-file driven decisions for autonomy.
+# It reacts to requests coming from the GCS or other scripts and keeps the flight controller mode and local state in sync.
 async def run():
-    #Connection
+    # --------------------- MAVSDK Connection ---------------------
     drone = System()
     
     
@@ -411,13 +429,14 @@ async def run():
     autonomy_active = controller_status.get("autonomy_active", False)
     last_fc_mode = controller_status.get("fc_mode")
 
-    #We need telemetry because minimum height is needed for autonomy and loiter height is set
+    # Telemetry values are stored in local shared variables so the control loop can make safety decisions without waiting on each MAVSDK callback.
     telemetry = {
         "rel_alt_m": 0.0,
         "flight_mode": None,
         "armed": False,
     }
 
+    # Background telemetry listeners update the shared values that the main loop reads each cycle.
     async def watch_telemetry():
         nonlocal last_telemetry_time
         async for pos in drone.telemetry.position():
@@ -439,7 +458,7 @@ async def run():
     log.info("Background telemetry listeners started. Entering main control loop.")
 
 
-    #MAIN CONTROL LOOP
+    # --------------------- Main Control Loop ---------------------
 
     while True:
         loop_start = time.time()
@@ -458,6 +477,7 @@ async def run():
 
         previous_fc_mode = last_fc_mode
 
+        # --------------------- Flight Mode Transitions ---------------------
         if mode_changed:
             log.info("FC mode transition: %s -> %s", previous_fc_mode, fc_mode)
             last_fc_mode = fc_mode
@@ -555,6 +575,7 @@ async def run():
         rel_alt = telemetry.get("rel_alt_m", 0.0)
         armed   = telemetry.get("armed", False)
 
+        # --------------------- Navigation Plan Upload ---------------------
         reupload_requested = active_plan.get("reupload_requested", False)
 
         upload_condition = (
@@ -663,8 +684,9 @@ async def run():
             )
             last_status_log = time.time()
 
+        # --------------------- GCS Command Handling ---------------------
         loiter_requested = state.get("loiter_requested", False)
-        #Loiter from GCS 
+        # Loiter requests are treated as an immediate command to pause autonomy and command the aircraft to hold position.
         if loiter_requested:
             log.info("Loitering")
             autonomy_active = False
@@ -727,7 +749,7 @@ async def run():
             await asyncio.sleep(state_period_s)
             continue
 
-        #Telemetry for safety 
+        # --------------------- Telemetry Safety Check ---------------------
         telemetry_age = time.time() - last_telemetry_time
         if telemetry_age > TELEMETRY_TIMEOUT_S:
             log.warning(
@@ -747,7 +769,7 @@ async def run():
             continue
 
 
-        #Manual Override
+        # --------------------- Pilot Override Detection ---------------------
         flight_mode = telemetry.get("flight_mode", "")
         manual_override_modes = {
             "MANUAL",
@@ -818,6 +840,7 @@ async def run():
             await asyncio.sleep(state_period_s)
             continue
 
+        # --------------------- Autonomy State Tracking ---------------------
         auto_modes = {
             "MISSION",
             "AUTO",
